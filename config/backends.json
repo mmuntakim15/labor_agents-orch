@@ -1,0 +1,12 @@
+{
+  "comment": "Dime backends the desk can work against. `checkout` is the ms-university source the endpoint map is built from (relative to this repo). Credentials never live here: put {\"backends\":{\"<id>\":{\"login\":{\"email\":\"…\",\"password\":\"…\"}}}} in config/backends.local.json (git-ignored). Only src/dime.js reads that file.",
+  "default": "local",
+  "backends": {
+    "local": {
+      "label": "Local API on the QA database",
+      "apiBaseUrl": "http://localhost:5150",
+      "checkout": "../../ms-university",
+      "boot": { "start": ["node", "server.js"], "env": { "NODE_ENV": "development", "PORT": "5150" }, "health": "/healthz", "bootTimeoutMs": 90000 }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": { "title": "Flux for the last two months", "body": "Create a flux for the last two months and produce the report with a short memo on the biggest movements.", "backend": "local" },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": ["2026-09", "2026-10"],
+    "mustNotMention": ["posted", "applied"],
+    "json": { "kind": "report", "size": "S", "writes": false, "worker": "analyst" },
+    "jsonKeys": ["subject", "done"],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Periods are the two complete months before the month of the run (built 2026-11). Update mustMention when replaying in another month."
+  }
+}

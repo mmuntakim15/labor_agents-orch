@@ -1,0 +1,11 @@
+{
+  "comment": "One-click starters for the asks that recur. {entity} and {period} are filled from --entity / --period (CLI) or typed over in the dashboard. Each runs the same lane as a typed request.",
+  "templates": [
+    { "id": "flux", "label": "Flux, last two months", "kind": "report", "title": "Flux for {entity}, last two months", "body": "Create a flux for {entity} for the last two months and produce the report as an xlsx, with a short memo naming the five biggest movements and the driver of each." },
+    { "id": "aging", "label": "AR over 60 days", "kind": "report", "title": "AR over 60 days for {entity}", "body": "Pull AR over 60 days as of {period} for {entity} into a workbook: one row per customer with invoice numbers and due dates, and a totals row." },
+    { "id": "integration-check", "label": "Did an integration migrate?", "kind": "question", "title": "Did all {integration} transactions migrate for {entity}", "body": "Did all of the {integration} transactions for {entity} migrate into Dime since {period}? Show me what is missing, with ids and amounts, and the last sync date." },
+    { "id": "payroll-tieout", "label": "Payroll register vs GL", "kind": "question", "title": "Payroll tie-out for {entity}, {period}", "body": "Compare {period} payroll in the GL for {entity} to the attached payroll register and explain every difference." },
+    { "id": "vendors-w9", "label": "Vendors from W-9s", "kind": "data_task", "title": "Set up vendors from W-9s for {entity}", "body": "For {entity}: here are vendor W-9s. Set the vendors up in Dime (propose them for my approval; do not duplicate any vendor that already exists) and list what you could not map." },
+    { "id": "reclass", "label": "Reclass transactions", "kind": "change_request", "title": "Reclass for {entity}, {period}", "body": "For {entity} in {period}: reclass the transactions described below to the right account. Show me the balanced entry or the categorisation change for each before anything is posted.\n\nTransactions:\n- " }
+  ]
+}

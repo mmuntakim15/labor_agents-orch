@@ -1,0 +1,41 @@
+{
+  "comment": "What the HTTP tool may call. A path is allowed only when it is in the endpoint map AND not denied here. Reads run during execution; anything else becomes a proposal. writesEnabled=false makes the whole desk read-only (kill switch).",
+  "writesEnabled": true,
+  "deniedPrefixes": [
+    "/api/v1/accountant/auth",
+    "/api/v1/accountant/invite",
+    "/api/v1/accountant/team",
+    "/api/v1/accountant/rolesAndPermissions",
+    "/api/v1/accountant/billing",
+    "/api/v1/accountant/apiClient",
+    "/api/v1/accountant/api-clients",
+    "/api/v1/accountant/mcp",
+    "/api/v1/accountant/mcpToolSettings",
+    "/api/v1/accountant/preferences",
+    "/api/v1/scim",
+    "/api/v1/internal",
+    "/api/v1/mcp",
+    "/api/v1/api",
+    "/api/v1/business",
+    "/api/v1/webhooks",
+    "/.well-known"
+  ],
+  "deniedPatterns": [
+    "-oauthUrl$", "-exchangeCode$", "-deauthorize$", "/oauth", "/exchange-code", "/exchangeCode", "/connect$", "/disconnect$",
+    "delete-all", "bulk-delete", "bulkDelete", "/purge", "/reset", "/lock-trial-balance", "/period-lock", "/lock$", "/finalize$", "/close$",
+    "webhook", "/login", "/logout", "/password", "/mfa"
+  ],
+  "readsViaNonGet": [
+    "PATCH /api/v1/transactions/accounting/bookkeeping/V2/businessId/:businessId",
+    "POST /api/v1/accountant/flux/compare/BalanceSheets",
+    "POST /api/v1/accountant/flux/compare/ProfitAndLoss",
+    "POST /api/v1/accountant/reports/general-ledger-realtime/:businessId/filter"
+  ],
+  "neverProposeMethods": ["DELETE"],
+  "tierByKind": {
+    "A": ["vendor", "customer", "product", "transaction_categorization", "chart_of_account", "flux", "report_package"],
+    "B": ["journal_entry", "accrual", "bill", "invoice", "transaction_bulk_import", "bank_account", "budget"],
+    "C": []
+  },
+  "tierDefault": "B"
+}

@@ -1,0 +1,27 @@
+{
+  "comment": "One lane for every request kind; the ceremony scales. Gates are statuses no agent can leave; only `lab approve` / `lab reject` / the dashboard move them. Loop budgets park the request in `blocked`.",
+  "lanes": {
+    "request": ["intake", "scope", "awaiting_gate_1", "execute", "verify", "awaiting_gate_2", "apply", "deliver", "done"],
+    "parent":  ["intake", "scope", "awaiting_gate_1", "children", "deliver", "done"]
+  },
+  "stages": {
+    "intake":          { "agents": ["intake"],   "label": "Intake" },
+    "scope":           { "agents": ["planner"],  "label": "Scope" },
+    "awaiting_gate_1": { "gate": 1, "label": "Scope approval (Gate 1)", "onApprove": "execute" },
+    "execute":         { "agents": ["worker"],   "label": "Working" },
+    "verify":          { "agents": ["verifier"], "label": "Verify" },
+    "awaiting_gate_2": { "gate": 2, "label": "Change approval (Gate 2)", "onApprove": "apply" },
+    "apply":           { "agents": ["applier"],  "label": "Apply" },
+    "deliver":         { "agents": ["deliverer"], "label": "Deliver" },
+    "children":        { "label": "Parent: child requests in progress" },
+    "done":            { "terminal": true, "label": "Done" },
+    "cancelled":       { "terminal": true, "label": "Cancelled" },
+    "blocked":         { "terminal": false, "label": "Blocked: needs a human" }
+  },
+  "kinds": ["report", "export", "question", "data_task", "change_request"],
+  "workers": { "report": "analyst", "export": "analyst", "question": "investigator", "data_task": "preparer", "change_request": "bookkeeper" },
+  "fastLane": { "sizes": ["S"], "kinds": ["report", "export", "question"], "comment": "A size-S read-only request with no open questions skips Scope and Gate 1." },
+  "loops": { "verify": 2 },
+  "concurrency": { "maxRuns": 2, "comment": "Runs in progress at once across requests. A request that writes never runs alongside another request on the same business." },
+  "budget": { "perRequestUsdBySize": { "S": 8, "M": 20, "L": 45 }, "default": 20 }
+}

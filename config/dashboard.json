@@ -1,0 +1,9 @@
+{
+  "comment": "Override any of these without committing in config/dashboard.local.json (git-ignored). Env wins over both: LAB_UI_PORT, LAB_UI_KEY. With `users` ([{name, key, roles:[requester|approver|operator]}]) sign-in is by account; remove `key` to allow accounts only.",
+  "port": 4790,
+  "key": "Test1234!!",
+  "embedOrigins": ["http://localhost:3000", "http://localhost:3150", "http://127.0.0.1:3000", "http://127.0.0.1:3150"],
+  "embedAutoSignIn": true,
+  "embedAutoSignInComment": "When an allowed origin frames the page, the person is signed in without the access key: the Dime app has already signed them in. Local development only; set false for a hosted desk until it has a token from the Dime API.",
+  "embedComment": "Origins allowed to embed the page in an iframe (the Dime web app in local development). Empty = nobody."
+}

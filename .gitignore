@@ -1,0 +1,7 @@
+node_modules/
+requests/
+runs/
+knowledge/generated/ENDPOINTS.json
+config/*.local.json
+.DS_Store
+*.tmp

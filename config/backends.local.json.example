@@ -1,0 +1,6 @@
+{
+  "comment": "Copy to config/backends.local.json (git-ignored). The service accountant user the desk signs in as, per backend. Only src/dime.js reads this file; agents never see it.",
+  "backends": {
+    "local": { "login": { "email": "desk@example.com", "password": "change-me" } }
+  }
+}

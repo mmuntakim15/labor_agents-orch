@@ -1,0 +1,13 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": { "title": "AR aging for Beckett as of quarter end", "body": "Give me the AR aging for Beckett as of the end of last quarter.", "backend": "local" },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "On the QA database more than one business may match 'Beckett'. If two match, the agent must ask exactly one question naming both (mustAsk cannot be frozen because the data may change; the runner reports what happened)."
+  }
+}

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request Desk</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="login" id="login" hidden>
+  <form class="login-card" id="login-form">
+    <div class="brandrow"><span class="logo lg" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v14M5 12h14M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><div><h1>Request Desk</h1><span class="beta">BETA</span></div></div>
+    <p>Send a request the way you would say it. The desk finds the figures in Dime, does the work, proves it, and hands back the deliverable.</p>
+    <label id="l-name-row">Your name<input id="l-name" autocomplete="name" maxlength="60"></label>
+    <label>Access key<input id="l-key" type="password" autocomplete="current-password" required></label>
+    <p class="err" id="l-err" role="alert" hidden></p>
+    <button class="btn primary">Continue</button>
+  </form>
+</div>
+
+<div class="app" id="app" hidden>
+  <aside class="side">
+    <a class="brand" href="#/board"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v14M5 12h14M7 7l10 10M17 7L7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="brand-text"><span class="name">Dime</span><span class="sub">Request Desk <em class="beta">BETA</em></span></span></a>
+    <button class="btn new" id="new" type="button" aria-label="New request"><span aria-hidden="true">+</span><span class="lbl">New request</span></button>
+    <nav>
+      <a href="#/board" data-nav="board"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Board</a>
+      <a href="#/done" data-nav="done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16M6 15V9M11 15V5M16 15v-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>Completed</a>
+      <a href="#/system" data-nav="system" class="techonly"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>System</a>
+    </nav>
+    <input class="search" id="search" type="search" placeholder="Search requests" aria-label="Search requests">
+    <a class="popout" id="popout" target="_blank" rel="noopener" title="Open the Request Desk in its own tab">Open in its own tab <span aria-hidden="true">↗</span></a>
+    <div class="side-list" id="side-list"></div>
+    <button class="btn ghost small notify" id="notify" type="button" hidden></button>
+    <div class="side-foot"><span class="av me" id="me-av" aria-hidden="true"></span><span class="me-name" id="me-name"></span><button class="btn ghost small" id="logout" type="button">Sign out</button></div>
+  </aside>
+
+  <main>
+    <section id="view-board">
+      <div class="hero" id="hero">
+        <h1 id="greet">What do you need?</h1>
+        <div class="tpls" id="tpls" aria-label="Start from a template"></div>
+        <form class="composer" id="composer" autocomplete="off">
+          <textarea id="c-body" rows="2" aria-label="Describe the request" placeholder="Describe what you need. Paste or drop files: statements, agings, W-9s, exports."></textarea>
+          <div class="chips" id="c-files"></div>
+          <div class="c-bar">
+            <button type="button" class="icon" id="c-attach" title="Attach files" aria-label="Attach files">+</button>
+            <input type="file" id="c-file" multiple hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.md,.txt,.log,.csv,.json,.xlsx,.xls,.docx">
+            <div class="seg" role="radiogroup" aria-label="Request kind">
+              <label><input type="radio" name="c-kind" value="" checked><span title="The desk works out what kind of request it is">Auto</span></label>
+              <label><input type="radio" name="c-kind" value="report"><span>Report</span></label>
+              <label><input type="radio" name="c-kind" value="question"><span>Question</span></label>
+              <label><input type="radio" name="c-kind" value="data_task"><span>Documents</span></label>
+              <label><input type="radio" name="c-kind" value="change_request"><span>Change</span></label>
+            </div>
+            <span class="hint">⌘ Enter</span>
+            <button class="send" id="c-go" title="Send request" aria-label="Send request">↑</button>
+          </div>
+        </form>
+      </div>
+      <div class="totals" id="totals"></div>
+      <div class="board" id="board"></div>
+    </section>
+    <section id="view-done" hidden></section>
+    <section id="view-system" hidden></section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Request">
+  <div class="d-head">
+    <div class="d-title"><div class="d-meta" id="d-meta"></div><h2 id="d-name"></h2><div class="stats" id="d-stats"></div></div>
+    <div class="d-tools" id="d-tools"></div>
+    <button class="icon" data-act="close" aria-label="Close" title="Close (Esc)">×</button>
+  </div>
+  <ol class="stepper" id="d-steps"></ol>
+  <div class="action" id="d-action"></div>
+  <div class="tabs" role="tablist">
+    <button data-act="tab" data-tab="chat" role="tab">Conversation</button>
+    <button data-act="tab" data-tab="deliver" role="tab">Files <span id="d-ndeliver"></span></button>
+    <button data-act="tab" data-tab="proof" role="tab">Checks &amp; sources <span id="d-nproof"></span></button>
+    <button data-act="tab" data-tab="files" role="tab" class="techonly">Working files <span id="d-nfiles"></span></button>
+    <button data-act="tab" data-tab="cost" role="tab" class="techonly">Runs</button>
+  </div>
+  <div class="panel" id="p-chat">
+    <div class="thread" id="thread"><div id="msgs"></div><div id="activity"></div></div>
+    <form class="reply" id="reply" autocomplete="off">
+      <div class="composer small">
+        <textarea id="r-body" rows="1" aria-label="Reply"></textarea>
+        <div class="chips" id="r-files"></div>
+        <div class="c-bar">
+          <button type="button" class="icon" id="r-attach" title="Attach files" aria-label="Attach files">+</button>
+          <input type="file" id="r-file" multiple hidden accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.md,.txt,.log,.csv,.json,.xlsx,.xls,.docx">
+          <label class="interrupt" id="r-int-row" hidden title="The desk does not see a note until its current step ends. This stops the step and starts it again with your note; the work on that step is redone."><input type="checkbox" id="r-int"> Stop and restart with this note</label>
+          <span class="hint">⌘ Enter</span>
+          <button class="send" title="Send" aria-label="Send">↑</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="panel" id="p-deliver" hidden></div>
+  <div class="panel" id="p-proof" hidden></div>
+  <div class="panel files" id="p-files" hidden><div class="f-list" id="f-list"></div><div class="f-view" id="f-view"></div></div>
+  <div class="panel" id="p-cost" hidden></div>
+</aside>
+
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

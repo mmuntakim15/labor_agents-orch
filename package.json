@@ -1,0 +1,24 @@
+{
+  "name": "@dime/labor-agents-orch",
+  "version": "0.1.0",
+  "description": "Dime Request Desk: ad hoc accounting requests (reports, exports, questions, document-driven tasks) completed by a team of agents against Dime's API, with human gates, receipts on every figure, and a Dime-themed dashboard.",
+  "private": true,
+  "main": "src/orchestrator.js",
+  "bin": {
+    "lab": "bin/lab"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:unit": "node --test test/units.test.js test/transition.test.js test/dime.test.js",
+    "test:e2e": "node --test test/orchestrator.e2e.test.js test/dashboard.test.js",
+    "check": "node --check bin/lab && for f in src/*.js hooks/*.js tools/*.js agents/*/index.js dashboard/server.js dashboard/ui/app.js; do node --check $f || exit 1; done",
+    "doctor": "node bin/lab doctor",
+    "dashboard": "node bin/lab dashboard",
+    "map": "node bin/lab map"
+  },
+  "dependencies": {},
+  "comment": "Zero dependencies on purpose (same stance as dev-agents-orch and audit-agent). The Claude Code CLI on this machine is the model runtime, so the developer's Claude login is reused and no API key is needed. xlsx reading and writing, docx text, and the HTTP client are implemented on node built-ins."
+}

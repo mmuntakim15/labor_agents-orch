@@ -1,0 +1,14 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": { "title": "Set up vendors from W-9s and tie out the AP aging", "body": "Here are twelve vendor W-9s and the Q3 AP aging from the old system. Set the vendors up and tell me what doesn't tie.", "backend": "local", "attachments": [] },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "json": { "kind": "data_task", "writes": true, "worker": "preparer" },
+    "jsonOneOf": { "size": ["M", "L"] },
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "No files are attached in the frozen case; the agent may ask for them (one question is allowed) but must still classify as a writing data task."
+  }
+}

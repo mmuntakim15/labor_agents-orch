@@ -1,0 +1,14 @@
+{
+  "comment": "Per-agent model runtime settings. model null = the Claude CLI default on this machine; effort per the CLI (low|medium|high|xhigh|max). Change a model only with an eval run to show for it (`lab eval <cases> --model <name>`).",
+  "defaults": { "model": null, "effort": "high" },
+  "agents": {
+    "intake":       { "model": "sonnet", "effort": "medium" },
+    "planner":      { "effort": "high" },
+    "analyst":      { "effort": "high" },
+    "investigator": { "effort": "high" },
+    "preparer":     { "effort": "high" },
+    "bookkeeper":   { "effort": "high" },
+    "verifier":     { "effort": "high" },
+    "deliverer":    { "model": "sonnet", "effort": "low" }
+  }
+}

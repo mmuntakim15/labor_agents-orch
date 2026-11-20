@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { parseArgs } = require('util');
+const { execFileSync } = require('child_process');
+
+const ROOT = path.join(__dirname, '..');
+const T = require(path.join(ROOT, 'src', 'request'));
+const O = require(path.join(ROOT, 'src', 'orchestrator'));
+
+const USAGE = `lab — Dime Request Desk orchestrator
+
+  lab new      --title "<title>" [--body <file|text>] [--kind report|export|question|data_task|change_request] [--reporter <name>] [--attach <file>…] [--backend <id>]
+  lab new      --template flux|aging|integration-check|payroll-tieout|vendors-w9|reclass --entity "<name>" [--period <text>] [--integration <name>] [--attach <file>…]
+  lab run      <ID> [--until <status>] [--dry-run]            advance to the next human gate
+  lab approve  <ID> --gate <1|2> --by <name> [--note "<text>"] [--role approver|requester|operator]
+  lab reject   <ID> --gate <1|2> --by <name> --note "<text>"
+  lab proposal <ID> <P-n> --by <name> --decision approve|reject|answer [--note "<text>"] [--amount <n>] [--body '<json>'|<file>]   (--body replaces what will be sent; recorded as an edit)
+  lab answer   <ID> --by <name> (--text "<answer>" | --file <path>)
+  lab sendback <ID> --by <name> --note "<what to change>"       send delivered work back for another round
+  lab override <ID> --by <name> --item D-n --note "<why>"       accept a failing done item (recorded on the evidence page)
+  lab budget   <ID> --usd <n> --by <name>                        raise this request's model budget
+  lab loop     <ID> --by <name>                                  allow one more verify round
+  lab requeue  <ID> --status <stage> --by <name>
+  lab resume   <ID>                                              blocked after a timeout? judge the last stage from its artifacts
+  lab cancel   <ID> --by <name> --note "<why>"
+  lab comment  <ID> --by <name> --text "<text>"
+  lab lessons  [<ID>] [--accept --by <name>]
+  lab status <ID> | lab board | lab metrics | lab evidence <ID>
+  lab map [--force] | lab doctor [--deep] | lab worker [--once] | lab stack up|down [--backend <id>]
+  lab eval [case…] [--dry-run] [--repeat <n>] [--model <name>]
+  lab dashboard [--port <n>]
+`;
+
+function readBody(v) { if (!v) return ''; return fs.existsSync(v) ? fs.readFileSync(v, 'utf8') : v; }
+const money = (n) => `$${(n || 0).toFixed(2)}`;
+
+async function main() {
+  const [cmd, ...argv] = process.argv.slice(2);
+  const opts = {
+    title: { type: 'string' }, body: { type: 'string' }, reporter: { type: 'string' }, kind: { type: 'string' }, backend: { type: 'string' }, attach: { type: 'string', multiple: true }, template: { type: 'string' }, entity: { type: 'string' }, period: { type: 'string' }, integration: { type: 'string' },
+    until: { type: 'string' }, 'dry-run': { type: 'boolean' }, force: { type: 'boolean' }, once: { type: 'boolean' }, accept: { type: 'boolean' }, deep: { type: 'boolean' },
+    gate: { type: 'string' }, by: { type: 'string' }, role: { type: 'string' }, note: { type: 'string' }, decision: { type: 'string' }, amount: { type: 'string' }, item: { type: 'string' },
+    text: { type: 'string' }, file: { type: 'string' }, status: { type: 'string' }, usd: { type: 'string' }, repeat: { type: 'string' }, model: { type: 'string' }, port: { type: 'string' },
+  };
+  if (!cmd || cmd === 'help' || cmd === '--help') { process.stdout.write(USAGE); return; }
+  const { values, positionals } = parseArgs({ args: argv, options: opts, allowPositionals: true });
+  const id = positionals[0];
+
+  switch (cmd) {
+    case 'new': {
+      let title = values.title; let body = readBody(values.body); let kind = values.kind;
+      if (values.template) {
+        const tpl = (JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'templates.json'), 'utf8')).templates || []).find((t) => t.id === values.template);
+        if (!tpl) throw new Error(`unknown template ${values.template}; see config/templates.json`);
+        const fill = (s) => String(s).replace(/\{entity\}/g, values.entity || '{entity}').replace(/\{period\}/g, values.period || '{period}').replace(/\{integration\}/g, values.integration || '{integration}');
+        title = title || fill(tpl.title); body = [fill(tpl.body), body].filter(Boolean).join('\n\n'); kind = kind || tpl.kind;
+      }
+      const r = T.createRequest({ title: title || body.split('\n')[0].slice(0, 120), body, reporter: values.reporter || 'human', backend: values.backend || null });
+      if (kind) { if (!O.KINDS.includes(kind)) throw new Error(`kind must be one of ${O.KINDS.join(', ')}`); r.kind = kind; }
+      if (values.template) r.template = values.template;
+      const saved = [];
+      for (const f of values.attach || []) { if (!fs.existsSync(f)) throw new Error(`no such file ${f}`); const dir = path.join(T.artifactsDir(r.id), 'attachments'); fs.mkdirSync(dir, { recursive: true }); const name = path.basename(f).replace(/[^A-Za-z0-9._-]+/g, '-'); fs.copyFileSync(f, path.join(dir, name)); saved.push({ name, bytes: fs.statSync(f).size, mime: null, at: new Date().toISOString() }); }
+      if (saved.length) { r.attachments = saved; T.addComment(r.id, { author: r.reporter, stage: 'intake', body: `Attached: ${saved.map((s) => s.name).join(', ')}` }); }
+      T.saveRequest(r);
+      console.log(`created ${r.id}: ${r.title}${r.kind ? ` [${r.kind}]` : ''}${saved.length ? ` with ${saved.length} attachment(s)` : ''}`);
+      return;
+    }
+    case 'run': { const r = await O.run(id, { until: values.until, dryRun: values['dry-run'] }); console.log(`${r.id} is now: ${r.status}`); return; }
+    case 'approve': { const r = O.approve(id, Number(values.gate), values.by, values.note, values.role || 'approver'); console.log(`${r.id}: Gate ${values.gate} approved by ${values.by}; now ${r.status}`); return; }
+    case 'reject': { const r = O.reject(id, Number(values.gate), values.by, values.note); console.log(`${r.id}: Gate ${values.gate} sent back; now ${r.status}`); return; }
+    case 'proposal': {
+      let body = null; if (values.body) { try { body = JSON.parse(readBody(values.body)); } catch (e) { throw new Error(`--body must be JSON (inline or a file): ${e.message}`); } }
+      const it = O.decideProposal(id, positionals[1], values.by, { decision: values.decision, note: values.note, amount: values.amount != null ? Number(values.amount) : null, body });
+      console.log(`${id}: ${it.id} ${it.status}${body ? ' (body edited)' : ''}`); return;
+    }
+    case 'answer': { const text = values.file ? fs.readFileSync(values.file, 'utf8') : values.text; const r = O.answer(id, values.by, text); console.log(`${r.id}: answered; run it again`); return; }
+    case 'sendback': { const r = O.sendBack(id, values.by, values.note); console.log(`${r.id}: sent back; now ${r.status}`); return; }
+    case 'override': { const r = O.override(id, values.by, values.item, values.note); console.log(`${r.id}: ${values.item} overridden; now ${r.status}`); return; }
+    case 'budget': { const r = O.raiseBudget(id, values.by, Number(values.usd)); console.log(`${r.id}: budget $${values.usd}; now ${r.status}`); return; }
+    case 'loop': { const r = O.grantLoop(id, values.by, 'verify'); console.log(`${r.id}: one more verify round allowed; now ${r.status}`); return; }
+    case 'requeue': { const r = O.requeue(id, values.by, values.status); console.log(`${r.id}: now ${r.status}`); return; }
+    case 'resume': { const r = O.resumeFromArtifacts(id); console.log(`${id}: ${r.status}${r.reason ? ` (${r.reason})` : ''}`); return; }
+    case 'cancel': { const r = O.cancel(id, values.by, values.note); console.log(`${r.id}: cancelled`); return; }
+    case 'comment': { O.pipeline; T.addComment(id, { author: values.by || 'human', stage: T.loadRequest(id).status, body: values.text }); console.log('ok'); return; }
+    case 'lessons': {
+      if (!id) { const p = O.pendingLessons(); console.log(p.length ? `lessons waiting on: ${p.join(', ')}` : 'no lessons waiting'); return; }
+      if (values.accept) { O.acceptLessons(id, values.by); console.log(`${id}: lessons accepted into knowledge/shared/learned.md`); return; }
+      console.log(T.readArtifact(id, 'lessons.md') || '(no lessons.md)'); return;
+    }
+    case 'status': {
+      const r = T.loadRequest(id);
+      console.log(`${r.id}  ${r.title}\n  status: ${r.status}${r.blocked ? ` (${r.blocked.kind}: ${r.blocked.reason})` : ''}   kind: ${r.kind || '-'}   size: ${r.size || '-'}   writes: ${r.writes}   worker: ${r.worker || '-'}\n  subject: ${JSON.stringify(r.subject)}\n  gates: 1 ${r.gates[1].approved ? `✔ ${r.gates[1].by}` : '–'}   2 ${r.gates[2].approved ? `✔ ${r.gates[2].by}` : '–'}   loops: verify ${r.loops.verify}/${O.loopLimit(r, 'verify')}\n  cost: ${money(O.spent(r))} of ${money(O.budgetFor(r))} in ${r.runs.length} run(s)\n  done items: ${(r.done || []).length}   proposals: ${JSON.stringify(require(path.join(ROOT, 'src', 'proposals')).summary(r.id))}\n  artifacts: ${T.listArtifacts(r.id).join(', ') || 'none'}`);
+      if (r.pendingQuestions.length) console.log(`  questions: ${r.pendingQuestions.join(' | ')}`);
+      return;
+    }
+    case 'board': {
+      for (const r of T.listRequests()) console.log(`${r.id.padEnd(8)} ${r.status.padEnd(16)} ${(r.kind || '-').padEnd(14)} ${(r.size || '-').padEnd(2)} ${money(O.spent(r)).padStart(8)}  ${r.title.slice(0, 70)}`);
+      return;
+    }
+    case 'metrics': { for (const m of O.metrics()) console.log(JSON.stringify(m)); return; }
+    case 'evidence': { const ev = require(path.join(ROOT, 'src', 'evidence')).assemble(T.loadRequest(id)); console.log(`${id}: evidence.html written (${ev.receipts.calls} receipts, ${ev.proposals.length} proposals, ${money(ev.costUsd)})`); return; }
+    case 'map': {
+      const M = require(path.join(ROOT, 'src', 'map'));
+      const cur = M.load();
+      if (cur && !values.force && M.fresh(cur)) { console.log(`endpoint map is fresh (${cur.count} endpoints, built ${cur.builtAt}); use --force to rebuild`); return; }
+      M.build({ log: console.log }); return;
+    }
+    case 'stack': {
+      const S = require(path.join(ROOT, 'src', 'stack'));
+      if (positionals[0] === 'up') { const r = await S.up(values.backend, { log: console.log }); console.log(r.already ? 'already up' : `up (pid ${r.pid})`); return; }
+      if (positionals[0] === 'down') { console.log(S.down(values.backend) ? 'stopped' : 'nothing to stop'); return; }
+      throw new Error('stack up | stack down');
+    }
+    case 'worker': { await O.worker({ once: values.once }); return; }
+    case 'doctor': { process.exitCode = (await doctor({ deep: values.deep })) ? 0 : 1; return; }
+    case 'eval': { const { evaluate } = require(path.join(ROOT, 'src', 'evalrun')); const r = await evaluate({ cases: positionals, dryRun: values['dry-run'], repeat: Number(values.repeat || 1), model: values.model }); process.exitCode = r.failed ? 1 : 0; return; }
+    case 'dashboard': { const UI = require(path.join(ROOT, 'dashboard', 'server')); await UI.start({ port: values.port ? Number(values.port) : undefined }); return; }
+    default: throw new Error(`unknown command ${cmd}\n${USAGE}`);
+  }
+}
+
+async function doctor({ deep = false } = {}) {
+  const D = require(path.join(ROOT, 'src', 'dime'));
+  const M = require(path.join(ROOT, 'src', 'map'));
+  const rows = [];
+  const ok = (t) => rows.push(`✔ ${t}`); const bad = (t) => rows.push(`✖ ${t}`); const info = (t) => rows.push(`ℹ ${t}`);
+  const major = Number(process.versions.node.split('.')[0]); if (major >= 20) ok(`node ${process.versions.node}`); else bad(`node ${process.versions.node}; need 20+`);
+  try { const v = execFileSync(process.env.LAB_CLAUDE_BIN || 'claude', ['--version'], { encoding: 'utf8', timeout: 15000 }).trim(); ok(`claude CLI ${v}`); } catch (e) { bad(`claude CLI not found (${e.message.split('\n')[0]})`); }
+  if (deep) { try { const t = execFileSync(process.env.LAB_CLAUDE_BIN || 'claude', ['-p', 'Reply with exactly: OK', '--max-turns', '1'], { encoding: 'utf8', timeout: 90000 }); if (/OK/.test(t)) ok('claude answers a prompt (signed in)'); else bad(`claude answered oddly: ${t.slice(0, 80)}`); } catch (e) { bad(`claude cannot answer a prompt: ${e.message.split('\n')[0]}`); } } else info('claude sign-in not tested (add --deep to spend a few cents on a one-turn prompt)');
+  let b = null; try { b = D.backend(); ok(`backend "${b.id}" → ${b.apiBaseUrl}`); } catch (e) { bad(e.message); }
+  if (b) {
+    const h = await D.health(b.id); if (h.ok) ok(`Dime API answers (${h.status})`); else bad(`Dime API not reachable at ${b.apiBaseUrl}${h.error ? ` (${h.error})` : ''}: run \`lab stack up\``);
+    if (b.login && b.login.email) { if (h.ok) { try { await D.login(b.id, { force: true }); ok(`service login works (${b.login.email.replace(/^(.).*@/, '$1…@')})`); } catch (e) { bad(`service login failed: ${e.message}`); } } else info('service login not tested (API down)'); } else bad(`no service login for backend "${b.id}" in config/backends.local.json`);
+    const co = D.checkoutPath(b); if (fs.existsSync(path.join(co, 'app.js'))) ok(`Dime checkout at ${co}`); else bad(`no Dime checkout at ${co}`);
+  }
+  const map = M.load(); if (!map) bad('endpoint map missing: run `lab map`'); else if (!M.fresh(map)) bad(`endpoint map older than the checkout (built ${map.builtAt}): run \`lab map\``); else ok(`endpoint map fresh: ${map.count} endpoints, ${map.endpoints.filter((e) => e.denied).length} denied by policy`);
+  const chrome = process.env.LAB_CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'; if (fs.existsSync(chrome)) ok('Chrome for pdf deliverables'); else info('no Chrome: pdf deliverables fall back to html');
+  try { fs.mkdirSync(T.requestsDir(), { recursive: true }); fs.accessSync(T.requestsDir(), fs.constants.W_OK); ok(`request store writable at ${T.requestsDir()}`); } catch { bad('request store not writable'); }
+  for (const a of Object.keys(O.agents)) { try { if (!O.agents[a].deterministic) require(path.join(ROOT, 'src', 'knowledge')).buildSystemPrompt(a); } catch (e) { bad(`agent ${a}: ${e.message}`); } }
+  ok(`${Object.keys(O.agents).length} agents load`);
+  for (const r of rows) console.log(r);
+  return !rows.some((r) => r.startsWith('✖'));
+}
+
+main().catch((e) => { console.error(`error: ${e.message}`); process.exit(1); });

@@ -21,7 +21,7 @@ const get = async (p, headers = {}) => { const r = await fetch(base + p, { heade
 
 test.before(async () => {
   api = await fakeDime(); restoreMap = writeTestMap().restore;
-  server = UI.createServer({ startRun: (id) => started.push(id), activeOf: (t) => (activeNow.has(t.id) ? { active: true, pid: null, agent: 'analyst', since: new Date(Date.now() - 60000).toISOString() } : { active: false, pid: null, agent: null, since: null }), notify: (n) => notified.push(n), doctor: async () => [{ ok: true, text: 'node 20' }], key: KEY, users: [] });
+  server = UI.createServer({ verifyDimeToken: async (t) => (t === 'dime-token-of-a-signed-in-user' ? { name: 'Jake' } : null), appOrigins: ['http://localhost:3000'], startRun: (id) => started.push(id), activeOf: (t) => (activeNow.has(t.id) ? { active: true, pid: null, agent: 'analyst', since: new Date(Date.now() - 60000).toISOString() } : { active: false, pid: null, agent: null, since: null }), notify: (n) => notified.push(n), doctor: async () => [{ ok: true, text: 'node 20' }], key: KEY, users: [] });
   await listen(server); base = `http://127.0.0.1:${server.address().port}`;
   const r = await post('/api/login', { key: KEY, name: 'Mo' }); assert.equal(r.status, 200); cookie = r.headers.get('set-cookie').split(';')[0];
 });
@@ -57,6 +57,18 @@ test('framed by the Dime app, the desk signs the person in without the key; anyt
   assert.equal((await load({ 'sec-fetch-dest': 'iframe', referer: 'http://evil.example/' })).headers.get('set-cookie'), null);
   assert.equal((await load({ 'sec-fetch-dest': 'document', referer: 'http://localhost:3000/' })).headers.get('set-cookie'), null);
   assert.equal((await fetch(`${base}/`, { headers: { 'sec-fetch-dest': 'iframe', referer: 'http://localhost:3000/' } })).headers.get('set-cookie'), null);
+});
+
+test('the Dime web app calls the desk with the Dime sign-in token: allowed origin + valid token only', async () => {
+  const app = { origin: 'http://localhost:3000', authorization: 'Bearer dime-token-of-a-signed-in-user' };
+  const pre = await fetch(`${base}/api/board`, { method: 'OPTIONS', headers: { origin: app.origin, 'access-control-request-method': 'GET' } }); assert.equal(pre.status, 204); assert.equal(pre.headers.get('access-control-allow-origin'), app.origin);
+  const b = await fetch(`${base}/api/board`, { headers: app }); assert.equal(b.status, 200); assert.equal(b.headers.get('access-control-allow-origin'), app.origin);
+  const made = await fetch(`${base}/api/requests`, { method: 'POST', headers: { ...app, 'content-type': 'application/json' }, body: JSON.stringify({ body: 'AR over 60 days', start: false, business: 'b1' }) });
+  assert.equal(made.status, 201); assert.equal((await made.json()).request.reporter, 'Jake');
+  assert.equal((await fetch(`${base}/api/board`, { headers: { origin: app.origin, authorization: 'Bearer some-other-token-that-dime-rejects' } })).status, 401);
+  assert.equal((await fetch(`${base}/api/requests`, { method: 'POST', headers: { origin: 'http://evil.example', authorization: app.authorization, 'content-type': 'application/json' }, body: '{"body":"x"}' })).status, 403);
+  assert.equal((await fetch(`${base}/api/requests`, { method: 'POST', headers: { origin: app.origin, cookie, 'content-type': 'application/json' }, body: '{"body":"x","start":false}' })).status, 403); // a cookie alone never works cross-origin
+  assert.equal((await fetch(`${base}/api/board`, { method: 'OPTIONS', headers: { origin: 'http://evil.example' } })).status, 403);
 });
 
 test('a request sent from a client workspace carries that business as its subject; a bad id is refused', async () => {
@@ -108,6 +120,8 @@ test('delivered: summary, deliverables with downloads, evidence page, send back;
   // the requester never sees a markdown name, a route or a tool: the memo is labelled as the pdf it opens as, sources are named as reports
   assert.equal(d.body.deliverables.find((f) => f.name === 'memo.md').label, 'memo.pdf');
   const as = d.body.assurance; assert.ok(as.some((r) => r.key === 'deliverables' && r.items.some((i) => i.text === 'memo.pdf'))); assert.doesNotMatch(JSON.stringify(as), /\/api\/|\.md\b|guard|allow list|GET |checks\.json/);
+  T.addComment(id, { author: 'orchestrator', stage: 'deliver', body: '⚠ the guard stopped 1 tool call by Deliverer: Bash `ls /x`' }); T.addComment(id, { author: 'Deliverer', stage: 'deliver', body: 'I wrote `summary.md`.\n\n— Deliverer: Your flux is ready (R-6, R-7) in flux-memo.md. Size S, goes to the analyst.' }); T.addComment(id, { author: 'orchestrator', stage: 'deliver', body: '→ done (delivered)' });
+  const th = (await get(`/api/requests/${id}`)).body.thread; assert.deepEqual(th.map((m) => m.k), ['you', 'desk', 'step']); assert.equal(th[1].text, 'Your flux is ready in flux-memo.pdf.'); assert.equal(th[2].status, 'done');
   assert.equal(UI.sourceName('GET /api/v1/accountant/reports/profit-and-loss-realtime/6ac61eb5bdc8011894efa2c4'), 'Profit and loss'); assert.equal(UI.sourceName('GET /api/v1/accountant/dashboard/businessList'), 'List of businesses');
   process.env.LAB_CHROME = path.join(__dirname, 'fixtures', 'fake-chrome.js');
   const pdf = await get(`/api/requests/${id}/files/deliverables/memo.md?as=pdf`); assert.equal(pdf.status, 200); assert.match(pdf.type, /application\/pdf/); assert.match(pdf.disposition, /inline; filename="memo\.pdf"/); assert.equal(pdf.body.slice(0, 4).toString(), '%PDF');

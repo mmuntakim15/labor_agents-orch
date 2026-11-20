@@ -75,3 +75,19 @@ docs/TECH_SPEC.md       engineering spec · PLAN.md architecture review and buil
 npm run check && npm test       # units, transitions, HTTP tool against a fake Dime, the whole lane with a stand-in model, the dashboard
 node bin/lab eval               # replay agents on frozen cases with the real model (spends a little)
 ```
+
+## Working for the Dime API
+
+In the Dime web app the Request Desk screen talks to the Dime API, and the desk is a worker of that API: it never serves
+a browser. `dashboard/apiWorker.js` claims what people did in the app (`/api/v1/internal/request-desk/commands/claim`),
+acts on it through the same functions the desk's own page uses, and reports each request's client view and delivered
+files back. Every call goes outward, so the desk can sit behind NAT.
+
+The worker starts with `lab dashboard` when a token is set:
+
+- `LAB_API_TOKEN`: the shared secret; the API has the same value as `REQUEST_DESK_TOKEN`. No token, no worker.
+- `LAB_API_URL`: the API's address. Defaults to the Dime backend the desk already works against (`config/backends.json`).
+
+What crosses to the API is the client view only (`viewOf`): no cost, run counts, agent names, routes or working files.
+A markdown draft is uploaded as the PDF a person opens, never as markdown. Tests: `test/apiWorker.test.js`.
+

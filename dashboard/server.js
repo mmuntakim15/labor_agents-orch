@@ -79,13 +79,15 @@ function resolveInside(root, rel) {
   if (/^\.env/.test(path.basename(real)) || /backends\.local/.test(real)) return null;
   return real;
 }
-function requestAllowed(req, port) {
+function requestAllowed(req, port, { appOrigin = false } = {}) {
   const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
   const host = req.headers.host || '';
   if (!hosts.has(host)) return 'bad host';
   if (req.method === 'GET' || req.method === 'HEAD') return null;
   const origin = req.headers.origin;
-  if (origin && origin !== `http://${host}`) return 'cross-origin request refused';
+  // The Dime web app calls from its own origin. That is allowed only for an origin on the list and only with a Dime token:
+  // a token is sent by the app's code, never by the browser on its own, so another site cannot ride on it.
+  if (origin && origin !== `http://${host}` && !(appOrigin && /^Bearer \S+/.test(req.headers.authorization || ''))) return 'cross-origin request refused';
   if (!/^application\/json\b/.test(req.headers['content-type'] || '')) return 'content-type must be application/json';
   return null;
 }
@@ -222,6 +224,40 @@ function assurance(req, deliverables) {
   return rows;
 }
 
+/** A markdown artifact as a PDF, rendered once per version of the file. Returns the path of the PDF. */
+async function pdfOf(id, rel) {
+  const f = resolveInside(T.artifactsDir(id), rel); if (!f || !fs.statSync(f).isFile()) throw new Error('file not found');
+  const st = fs.statSync(f); const key = crypto.createHash('sha1').update(`${rel}:${st.mtimeMs}:${st.size}`).digest('hex').slice(0, 16);
+  const out = path.join(runsDir(id), 'pdf-cache', `${key}.pdf`);
+  if (!PDF.isPdf(out)) await PDF.toPdf(MD.page(rel === 'summary.md' ? T.loadRequest(id).title : path.basename(f, '.md'), fs.readFileSync(f, 'utf8')), out);
+  return out;
+}
+
+// The conversation as the requester reads it: their own messages, a divider per step, and one plain note per step from the desk.
+// Run starts, tool warnings, working notes and internal names are left out here so every client screen gets the same view.
+function plainNames(t) {
+  return String(t || '').replace(/\b([\w-]+)\.md\b/g, (m, n) => (/^(summary|work|verify|triage|scope|memo|lessons)$/.test(n) ? `the ${n === 'verify' ? 'review' : n === 'triage' ? 'intake' : n} notes` : `${n}.pdf`)).replace(/`([^`]+)`/g, '$1')
+    .replace(/\b(at|before|after|for) Gate 1\b/gi, '$1 plan approval').replace(/\b(at|before|after|for) Gate 2\b/gi, '$1 your approval').replace(/\bGate 1\b/g, 'plan approval').replace(/\bGate 2\b/g, 'approval of the changes').replace(/\s*\((?:P-\d+(?: to P-\d+)?, )?tier [ABC]\)/gi, '');
+}
+function clientThread(req, comments) {
+  const out = [];
+  comments.forEach((c, i) => {
+    let body = c.body || ''; const kind = commentKind(c.author);
+    const mv = kind === 'system' && /^→ (\w+)(?: \(([\s\S]*)\))?\s*$/.exec(body);
+    if (mv) { out.push({ k: 'step', at: c.at, status: mv[1] }); return; }
+    if (kind === 'system') return;
+    if (kind === 'agent') {
+      const m = /(?:^|\n)— [^:\n]{1,40}: ([\s\S]+)$/.exec(body); if (!m) return;
+      const text = plainNames(m[1]).replace(/\s*\((?:R-\d+(?:,\s*| and )?)+\)/g, '').split(/(?<=[.!?])\s+/).filter((x) => !/\bsize [SML]\b|\b(analyst|investigator|preparer|bookkeeper|verifier|planner|deliverer|advisory|evaluators?)\b/i.test(x)).join(' ').trim();
+      if (text) out.push({ k: 'desk', at: c.at, text }); return;
+    }
+    if (i === 0 && req.title) { const rest = body.slice(req.title.length).replace(/^\n+/, ''); if (body.startsWith(req.title) && rest.startsWith(req.title.replace(/…$/, ''))) body = rest; }
+    const at = /(?:^|\n)Attached: (.+)\s*$/.exec(body); const text = (at ? body.slice(0, at.index) : body).replace(/\bGate 1\b/g, 'the plan').replace(/\bGate 2\b/g, 'the changes').replace(/ \((?:\w+, )?tier [ABC]\)/, '').trim();
+    out.push({ k: 'you', at: c.at, who: c.author, text, attachments: at ? at[1].split(',').map((x) => x.trim()).filter(Boolean) : [] });
+  });
+  return out;
+}
+
 /** The scope in the shape a person needs to approve Gate 1. */
 function scopeReview(req) {
   const plan = artifactJson(req.id, 'plan.json');
@@ -278,14 +314,36 @@ function activity(id) {
 function commentKind(author) { if (author === 'orchestrator') return 'system'; return AGENT_LABELS[author] ? 'agent' : 'human'; }
 
 // ---------------------------------------------------------------- server
-function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(), activeOf = activeState, notify = slackNotifier(CFG.notify), doctor = runDoctor } = {}) {
+// A person signed in to Dime is signed in to the desk: the token the Dime web app already holds is checked against Dime's own
+// "who am I" route, and the name on the desk's records is the name Dime returns. Nothing about the token is stored.
+async function verifyWithDime(token) {
+  const DIME = require(path.join(ROOT, 'src', 'dime'));
+  const r = await DIME.fetchJson(`${DIME.backend().apiBaseUrl}/api/v1/accountant/auth/me`, { headers: { authorization: `Bearer ${token}` }, timeoutMs: 15000 });
+  if (!r.ok || !r.json) return null;
+  const u = [r.json.data && r.json.data.user, r.json.user, r.json.data, r.json].find((x) => x && typeof x === 'object' && (x.name || x.firstName || x.email)) || {};
+  const name = String(u.firstName || String(u.name || '').split(/\s+/)[0] || String(u.email || '').split('@')[0] || '').replace(/[^\p{L}\p{N} .'-]/gu, '').trim().slice(0, 60);
+  return { name: name || 'Dime user' };
+}
+
+function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(), activeOf = activeState, notify = slackNotifier(CFG.notify), doctor = runDoctor, verifyDimeToken = verifyWithDime, appOrigins = CFG.embedOrigins || [] } = {}) {
   if (!key && !users.length) throw new Error('no sign-in configured: set LAB_UI_KEY, or "key" / "users" in config/dashboard.json');
   const sessions = new Map(); const fails = { n: 0, until: 0 };
   const digest = (s) => crypto.createHash('sha256').update(String(s ?? '')).digest();
   const same = (a, b) => crypto.timingSafeEqual(digest(a), digest(b));
   const cookieName = () => `lab_ui_${server.address().port}`;
   const tokenOf = (req) => { const m = new RegExp(`(?:^|;\\s*)${cookieName()}=([a-f0-9]{48})`).exec(req.headers.cookie || ''); return m ? m[1] : null; };
-  const sessionOf = (req) => { const tok = tokenOf(req); const s = tok && sessions.get(tok); if (!s) return null; if (s.exp < Date.now()) { sessions.delete(tok); return null; } return s; };
+  const bearer = new Map(); // sha256(token) → { s, exp }: a verified Dime token is trusted for five minutes, then asked about again
+  async function bearerSession(req) {
+    const m = /^Bearer (\S{20,4096})$/.exec(req.headers.authorization || ''); if (!m || CFG.dimeSignIn === false) return null;
+    const h = crypto.createHash('sha256').update(m[1]).digest('hex'); const hit = bearer.get(h);
+    if (hit && hit.exp > Date.now()) return hit.s;
+    let who = null; try { who = await verifyDimeToken(m[1]); } catch { who = null; }
+    if (!who) { bearer.delete(h); return null; }
+    const s = { name: who.name, roles: ROLES, account: false, dime: true, exp: Date.now() + 5 * 60000 };
+    if (bearer.size > 500) bearer.clear();
+    bearer.set(h, { s, exp: s.exp }); return s;
+  }
+  const sessionOf = (req) => { if (req.labSession) return req.labSession; const tok = tokenOf(req); const s = tok && sessions.get(tok); if (!s) return null; if (s.exp < Date.now()) { sessions.delete(tok); return null; } return s; };
   const who = (req) => sessionOf(req).name;
   // The Dime app has already signed the person in, so the desk does not ask again when the Dime app frames it: the browser itself
   // says the page is loading in a frame (Sec-Fetch-Dest) of an allowed origin (Referer); a web page cannot forge either header.
@@ -369,7 +427,7 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
     const lessons = fs.existsSync(path.join(T.artifactsDir(id), 'lessons.md'));
     const deliverables = deliverablesOf(t);
     return { request: t, summary: summary(t, ctx), lane: O.laneFor(t), comments: T.listComments(t.id).map((c) => ({ ...c, kind: commentKind(c.author) })), files: listFiles(T.artifactsDir(t.id)), activity: st.active ? activity(t.id) : [], canStop: Boolean(st.pid),
-      canEdit: !t.gates[1].approved && !['execute', 'verify', 'apply', 'deliver'].includes(t.status) && !(O.pipeline.stages[t.status] || {}).terminal, evidence: evidence(t), assurance: assurance(t, deliverables), scope: scopeReview(t), proposals: proposalsReview(t), deliverables, summaryMd: T.readArtifact(id, 'summary.md'), lessons: lessons ? { accepted: Boolean(t.lessonsNoted) } : null, log: tail(path.join(runsDir(id), 'ui-run.log'), 6000) };
+      canEdit: !t.gates[1].approved && !['execute', 'verify', 'apply', 'deliver'].includes(t.status) && !(O.pipeline.stages[t.status] || {}).terminal, evidence: evidence(t), assurance: assurance(t, deliverables), thread: clientThread(t, T.listComments(t.id)), summaryPlain: plainNames(T.readArtifact(id, 'summary.md') || ''), scope: scopeReview(t), proposals: proposalsReview(t), deliverables, summaryMd: T.readArtifact(id, 'summary.md'), lessons: lessons ? { accepted: Boolean(t.lessonsNoted) } : null, log: tail(path.join(runsDir(id), 'ui-run.log'), 6000) };
   }
   function trends() {
     const agg = EV.aggregate(EV.read()); const rows = O.metrics(); const waits = {};
@@ -383,6 +441,20 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
   let health = { at: 0, rows: null, pending: null };
   function getHealth(force) { if (!force && health.rows && Date.now() - health.at < 60000) return Promise.resolve(health); if (!health.pending) health.pending = doctor().then((rows) => { health = { at: Date.now(), rows, pending: null }; return health; }, () => { health = { at: Date.now(), rows: [{ ok: false, text: 'lab doctor could not be run' }], pending: null }; return health; }); return health.pending; }
 
+  /** A new request from what a person sent: text, kind, the client's business, attachments. Queues its first run. */
+  function createFromBody(body, by) {
+    const text = String(body.body || '').trim(); const title = String(body.title || '').trim() || deriveTitle(text);
+    if (!title) throw new HttpError(400, 'describe the request first');
+    if (body.kind && !O.KINDS.includes(body.kind)) throw new HttpError(400, `kind must be one of ${O.KINDS.join(', ')}`);
+    const t = T.createRequest({ title, body: text, reporter: by, backend: body.backend || null });
+    if (body.kind) { t.kind = body.kind; T.saveRequest(t); }
+    // sent from inside a client's workspace in the Dime app: that business is the subject, so the requester never has to name it
+    const biz = String(body.business || '').trim();
+    if (biz) { if (!/^[A-Za-z0-9_-]{1,64}$/.test(biz)) throw new HttpError(400, 'business must be a Dime business id'); const bname = oneLine(String(body.businessName || ''), 120); t.client = { businessId: biz, businessName: bname || null }; t.subject = { businessIds: [biz], ...(bname ? { businessNames: [bname] } : {}) }; T.saveRequest(t); }
+    try { const files = saveAttachments(t.id, body.attachments); if (files.length) T.addComment(t.id, { author: t.reporter, stage: 'intake', body: `Attached: ${files.map((f) => f.name).join(', ')}` }); } catch (e) { T.addComment(t.id, { author: 'orchestrator', stage: 'intake', body: `⚠ attachment not saved: ${e.message}` }); }
+    if (body.start !== false) request(t.id, by);
+    return t;
+  }
   const actions = {
     run(id, b, req) { const t = T.loadRequest(id); if (activeOf(t).active) throw new HttpError(409, 'already running'); if (!runnable(t)) throw new HttpError(409, `nothing to run in ${t.status}`); T.addComment(id, { author: who(req), stage: t.status, body: 'asked the desk to continue' }); request(id, who(req)); },
     stop(id, b, req) { const t = T.loadRequest(id); const wasQueued = Boolean(t.queued); O.dequeue(id); const pid = stopRun(id); if (!pid && !wasQueued) throw new HttpError(409, 'nothing is running or queued for this request'); T.addComment(id, { author: who(req), stage: t.status, body: pid ? 'stopped the run' : 'took the request out of the queue' }); },
@@ -420,7 +492,11 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
     const send = (code, body, headers = {}) => { const buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body)); res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...headers }); res.end(req.method === 'HEAD' ? undefined : buf); };
     const sendJson = (obj) => { const body = JSON.stringify(obj); const tag = `"${crypto.createHash('sha1').update(body).digest('base64')}"`; if (req.headers['if-none-match'] === tag) { res.writeHead(304, { etag: tag, 'cache-control': 'no-cache' }); return res.end(); } return send(200, body, { etag: tag, 'cache-control': 'no-cache' }); };
     try {
-      const refused = requestAllowed(req, server.address().port); if (refused) throw new HttpError(403, refused);
+      const origin = req.headers.origin; const appOrigin = Boolean(origin) && appOrigins.includes(origin);
+      if (appOrigin) for (const [k, v] of Object.entries({ 'access-control-allow-origin': origin, vary: 'Origin', 'access-control-allow-headers': 'authorization, content-type, if-none-match', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-expose-headers': 'etag, content-disposition', 'access-control-max-age': '600' })) res.setHeader(k, v);
+      if (req.method === 'OPTIONS') { res.writeHead(appOrigin ? 204 : 403); return res.end(); }
+      const refused = requestAllowed(req, server.address().port, { appOrigin }); if (refused) throw new HttpError(403, refused);
+      if (appOrigin && req.headers.authorization) req.labSession = await bearerSession(req);
       const url = new URL(req.url, 'http://x');
       const seg = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
       const open = seg.length === 2 && (seg[1] === 'login' || seg[1] === 'session' || seg[1] === 'logout');
@@ -442,9 +518,7 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
           const download = url.searchParams.get('download') === '1' || ['.xlsx', '.docx'].includes(ext);
           if (url.searchParams.get('as') === 'pdf') {
             if (ext !== '.md') throw new HttpError(400, 'only a markdown file can be opened as a pdf');
-            const st = fs.statSync(f); const key = crypto.createHash('sha1').update(`${rel}:${st.mtimeMs}:${st.size}`).digest('hex').slice(0, 16);
-            const out = path.join(runsDir(seg[2]), 'pdf-cache', `${key}.pdf`);
-            if (!PDF.isPdf(out)) { const title = rel === 'summary.md' ? T.loadRequest(seg[2]).title : path.basename(f, '.md'); try { await PDF.toPdf(MD.page(title, fs.readFileSync(f, 'utf8')), out); } catch (e) { throw new HttpError(503, `could not make the pdf: ${e.message}`); } }
+            let out; try { out = await pdfOf(seg[2], rel); } catch (e) { throw new HttpError(503, `could not make the pdf: ${e.message}`); }
             const fname = rel === 'summary.md' ? `${path.basename(T.requestDir(seg[2]))}-summary.pdf` : `${path.basename(f, '.md')}.pdf`;
             return send(200, fs.readFileSync(out), { 'content-type': 'application/pdf', 'content-disposition': `${url.searchParams.get('download') === '1' ? 'attachment' : 'inline'}; filename="${safeName(fname)}"` });
           }
@@ -471,16 +545,7 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
       }
       if (seg[0] === 'api' && seg[1] === 'logout' && seg.length === 2) { sessions.delete(tokenOf(req)); return send(200, { authed: false }, { 'set-cookie': `${cookieName()}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0` }); }
       if (seg[0] === 'api' && seg[1] === 'requests' && seg.length === 2) {
-        const text = String(body.body || '').trim(); const title = String(body.title || '').trim() || deriveTitle(text);
-        if (!title) throw new HttpError(400, 'describe the request first');
-        if (body.kind && !O.KINDS.includes(body.kind)) throw new HttpError(400, `kind must be one of ${O.KINDS.join(', ')}`);
-        const t = T.createRequest({ title, body: text, reporter: who(req), backend: body.backend || null });
-        if (body.kind) { t.kind = body.kind; T.saveRequest(t); }
-        // sent from inside a client's workspace in the Dime app: that business is the subject, so the requester never has to name it
-        const biz = String(body.business || '').trim();
-        if (biz) { if (!/^[A-Za-z0-9_-]{1,64}$/.test(biz)) throw new HttpError(400, 'business must be a Dime business id'); const bname = oneLine(String(body.businessName || ''), 120); t.client = { businessId: biz, businessName: bname || null }; t.subject = { businessIds: [biz], ...(bname ? { businessNames: [bname] } : {}) }; T.saveRequest(t); }
-        try { const files = saveAttachments(t.id, body.attachments); if (files.length) T.addComment(t.id, { author: t.reporter, stage: 'intake', body: `Attached: ${files.map((f) => f.name).join(', ')}` }); } catch (e) { T.addComment(t.id, { author: 'orchestrator', stage: 'intake', body: `⚠ attachment not saved: ${e.message}` }); }
-        if (body.start !== false) request(t.id, who(req));
+        const t = createFromBody(body, who(req));
         return send(201, detail(t.id));
       }
       if (seg[0] === 'api' && seg[1] === 'requests' && seg.length === 4 && Object.prototype.hasOwnProperty.call(actions, seg[3])) { T.loadRequest(seg[2]); const extra = actions[seg[3]](seg[2], body, req) || {}; return send(200, { ...detail(seg[2]), ...extra }); }
@@ -488,6 +553,8 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
     } catch (e) { const code = e instanceof HttpError ? e.code : /not found$/.test(e.message) ? 404 : 400; send(code, { error: e.message }); }
   });
   server.pump = pump;
+  // What the API worker needs to act for a person without an HTTP request of its own (see apiWorker.js).
+  server.hooks = { createFromBody, detail, pdfOf, act: (name, id, body, by) => { if (!Object.prototype.hasOwnProperty.call(actions, name)) throw new Error(`unknown action ${name}`); T.loadRequest(id); return actions[name](id, body || {}, { headers: {}, labSession: { name: by, roles: ROLES, account: false } }); } };
   const timer = setInterval(() => { try { pump(); } catch { /* next tick */ } }, 2000); timer.unref();
   server.on('close', () => clearInterval(timer));
   return server;
@@ -501,7 +568,7 @@ function slackNotifier(cfg) {
 }
 function start({ port, log = console.log } = {}) {
   const server = createServer(); const p = port ?? (Number(process.env.LAB_UI_PORT) || CFG.port || 4790);
-  return new Promise((resolve, reject) => { server.once('error', reject); server.listen(p, '127.0.0.1', () => { log(`Request Desk → http://127.0.0.1:${server.address().port}\n  orchestrator: ${ROOT}\n  Ctrl-C stops the dashboard; runs it started keep going`); resolve(server); }); });
+  return new Promise((resolve, reject) => { server.once('error', reject); server.listen(p, '127.0.0.1', () => { log(`Request Desk → http://127.0.0.1:${server.address().port}\n  orchestrator: ${ROOT}\n  Ctrl-C stops the dashboard; runs it started keep going`); const w = require('./apiWorker').startFromConfig(server.hooks, CFG, log); if (w) server.on('close', w.stop); resolve(server); }); });
 }
 
-module.exports = { createServer, start, loadKey, ORCH_DIR: ROOT, deriveTitle, safeName, resolveInside, requestAllowed, saveAttachments, activeState, costRates, evidence, assurance, sourceName, deliverablesOf, scopeReview, proposalsReview, transcript, slackNotifier };
+module.exports = { createServer, start, loadKey, ORCH_DIR: ROOT, deriveTitle, safeName, resolveInside, requestAllowed, saveAttachments, activeState, costRates, evidence, assurance, sourceName, deliverablesOf, clientThread, plainNames, pdfOf, scopeReview, proposalsReview, transcript, slackNotifier };

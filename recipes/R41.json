@@ -1,0 +1,110 @@
+{
+  "id": "R41",
+  "version": 1,
+  "group": 4,
+  "title": "Indirect-method cash flow statement rebuilt and reconciled to the system report",
+  "prompt": "Rebuild the last closed month's cash flow statement using the indirect method from the balance sheet and income statement, compare it with the system's cash flow report, and explain every difference.",
+  "keywords": [
+    "cash flow statement",
+    "indirect method",
+    "rebuild",
+    "reconcile",
+    "system report",
+    "balance sheet",
+    "income statement",
+    "differences",
+    "SCF"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "cashFlowMapping",
+      "q": "Which balance sheet accounts belong to each cash flow line (operating, investing, financing) when Dime's default mapping is not right?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Realtime statement of cash flows, opening and closing balance sheets and profit and loss",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the profit and loss, the opening and closing balance sheets and Dime's statement of cash flows for the month",
+    "run scf_indirect with cashFlowMapping to rebuild operating, investing and financing cash flows and the change in cash",
+    "compare each line with Dime's report; list every difference with the accounts behind it and the reason (mapping, timing, a noncash item classified differently)",
+    "write the workbook; a residual that cannot be explained is listed as such, never plugged"
+  ],
+  "compute": [
+    "scf_indirect"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The rebuilt change in cash equals the change in cash on the balance sheets (the reconciles flag from the rebuild is 1)",
+      "evaluator": "figure_in_range",
+      "args": {
+        "file": "scf-rebuild.json",
+        "figure": "reconciles"
+      },
+      "expect": {
+        "equals": 1
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row (a difference from the system report) cites the account ids and the system report line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "cash-flow-rebuild.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "cash-flow-rebuild.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "cash-flow-rebuild.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every difference from the system report has an explanation; unexplained residuals are listed as unexplained"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "cash-flow-rebuild.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r41-seed-co"
+  ]
+}

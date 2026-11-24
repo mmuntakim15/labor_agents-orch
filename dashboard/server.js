@@ -24,6 +24,7 @@ const R = require(path.join(ROOT, 'src', 'receipts'));
 const EVD = require(path.join(ROOT, 'src', 'evidence'));
 const MD = require(path.join(ROOT, 'src', 'markdown'));
 const PDF = require(path.join(ROOT, 'src', 'pdf'));
+const DG = require(path.join(ROOT, 'src', 'digest'));
 
 // What the requester gets, in the format they will open it in. A markdown or html draft that has been rendered to a pdf of the
 // same name is not listed twice; a markdown file with no pdf is offered as one (rendered on demand). The file to open first is
@@ -207,9 +208,11 @@ function sourceName(route) {
   const hit = known.find(([re]) => re.test(words)); if (hit) return hit[1];
   const tail = words.split(' ').filter(Boolean).slice(-3).join(' '); return tail ? tail[0].toUpperCase() + tail.slice(1) : 'Dime';
 }
+// RD-2: what kind of proof each assurance row is, for the client screen (PRD SPEC-2.6)
+const ASSURANCE_TYPE = { checks: 'code', verify: 'verifier', sources: 'receipts', proposals: 'changes', deliverables: 'files', overrides: 'override' };
 function assurance(req, deliverables) {
   const id = req.id; const rows = []; const doneText = Object.fromEntries((req.done || []).map((d) => [d.id, d.text]));
-  const add = (key, label, state, text, items = []) => rows.push({ key, label, state, text, items: items.slice(0, 14), file: null });
+  const add = (key, label, state, text, items = []) => rows.push({ key, type: ASSURANCE_TYPE[key] || 'other', label, state, text, items: items.slice(0, 14), file: null });
   const ck = artifactJson(id, 'checks.json');
   if (ck && (ck.items || []).length) { const hard = ck.items.filter((i) => !i.advisory); const met = hard.filter((i) => i.pass).length; add('checks', 'What was promised', ck.pass ? 'pass' : 'fail', `${met} of ${hard.length} requirements met`, hard.map((i) => ({ state: i.pass ? 'pass' : 'fail', text: `${doneText[i.id] || i.id}${i.pass ? '' : ' (not met)'}` }))); }
   const vf = artifactJson(id, 'verify.json');
@@ -426,8 +429,12 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
     const t = T.loadRequest(id); const st = activeOf(t); const ctx = context();
     const lessons = fs.existsSync(path.join(T.artifactsDir(id), 'lessons.md'));
     const deliverables = deliverablesOf(t);
+    let level = 'L3'; let metrics = null; try { level = DG.levelOf(t); metrics = DG.metricsOf(t); } catch { /* best effort */ }
     return { request: t, summary: summary(t, ctx), lane: O.laneFor(t), comments: T.listComments(t.id).map((c) => ({ ...c, kind: commentKind(c.author) })), files: listFiles(T.artifactsDir(t.id)), activity: st.active ? activity(t.id) : [], canStop: Boolean(st.pid),
-      canEdit: !t.gates[1].approved && !['execute', 'verify', 'apply', 'deliver'].includes(t.status) && !(O.pipeline.stages[t.status] || {}).terminal, evidence: evidence(t), assurance: assurance(t, deliverables), thread: clientThread(t, T.listComments(t.id)), summaryPlain: plainNames(T.readArtifact(id, 'summary.md') || ''), scope: scopeReview(t), proposals: proposalsReview(t), deliverables, summaryMd: T.readArtifact(id, 'summary.md'), lessons: lessons ? { accepted: Boolean(t.lessonsNoted) } : null, log: tail(path.join(runsDir(id), 'ui-run.log'), 6000) };
+      canEdit: !t.gates[1].approved && !['execute', 'verify', 'apply', 'deliver'].includes(t.status) && !(O.pipeline.stages[t.status] || {}).terminal, evidence: evidence(t), assurance: assurance(t, deliverables), thread: clientThread(t, T.listComments(t.id)), summaryPlain: plainNames(T.readArtifact(id, 'summary.md') || ''), scope: scopeReview(t), proposals: proposalsReview(t), deliverables, summaryMd: T.readArtifact(id, 'summary.md'), lessons: lessons ? { accepted: Boolean(t.lessonsNoted) } : null, log: tail(path.join(runsDir(id), 'ui-run.log'), 6000),
+      // RD-2: what the desk still needs from a person, what it proved (tie-out and exceptions written by the worker or a compute verb), how autonomous the run was
+      inputsNeeded: (t.inputsNeeded || []).map((i) => ({ name: i.name, period: i.period || null, why: i.why || null, acceptedTypes: i.acceptedTypes || [], standing: Boolean(i.standing), askedAt: i.askedAt || null, receivedAt: i.receivedAt || null, resolved: Boolean(i.receivedAt), missing: Boolean(i.missing) })),
+      tieout: artifactJson(id, 'tieout.json'), exceptions: artifactJson(id, 'exceptions.json'), level, metrics, recipeId: t.recipeId || null, recipeVersion: t.recipeVersion ?? null, origin: t.origin || { kind: 'manual', scheduleId: null, period: null } };
   }
   function trends() {
     const agg = EV.aggregate(EV.read()); const rows = O.metrics(); const waits = {};
@@ -448,6 +455,12 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
     if (body.kind && !O.KINDS.includes(body.kind)) throw new HttpError(400, `kind must be one of ${O.KINDS.join(', ')}`);
     const t = T.createRequest({ title, body: text, reporter: by, backend: body.backend || null });
     if (body.kind) { t.kind = body.kind; T.saveRequest(t); }
+    // RD-2: started from the Library (recipeId), by a schedule (origin, period), with the entity's standing context (setup) fetched by the API worker
+    if (body.recipeId) { if (!/^R\d{2}$|^cand-[a-z0-9-]+$/.test(String(body.recipeId))) throw new HttpError(400, 'No such recipe'); t.recipeId = String(body.recipeId); try { t.recipeVersion = require(path.join(ROOT, 'src', 'recipes')).load(t.recipeId).version; } catch { t.recipeVersion = null; } }
+    if (body.period) t.period = oneLine(String(body.period), 40);
+    if (body.origin && typeof body.origin === 'object') t.origin = { kind: body.origin.kind === 'schedule' ? 'schedule' : 'manual', scheduleId: body.origin.scheduleId || null, period: body.origin.period || t.period || null };
+    if (body.setup && typeof body.setup === 'object') { t.setup = body.setup; t.setupFetchedAt = new Date().toISOString(); }
+    if (body.recipeId || body.period || body.origin || body.setup) T.saveRequest(t);
     // sent from inside a client's workspace in the Dime app: that business is the subject, so the requester never has to name it
     const biz = String(body.business || '').trim();
     if (biz) { if (!/^[A-Za-z0-9_-]{1,64}$/.test(biz)) throw new HttpError(400, 'business must be a Dime business id'); const bname = oneLine(String(body.businessName || ''), 120); t.client = { businessId: biz, businessName: bname || null }; t.subject = { businessIds: [biz], ...(bname ? { businessNames: [bname] } : {}) }; T.saveRequest(t); }
@@ -482,6 +495,8 @@ function createServer({ startRun = spawnRun, key = loadKey(), users = loadUsers(
       if (!text && !files.length) throw new HttpError(400, 'write a message or attach a file');
       const body = [text, files.length ? `Attached: ${files.map((f) => f.name).join(', ')}` : ''].filter(Boolean).join('\n\n');
       const t = T.loadRequest(id);
+      // RD-2: a reply that supplies one of the inputs the desk asked for; the stage that asked resumes when none is left
+      if (b.inputFor) { const r = O.provideInput(id, by, String(b.inputFor), { note: text || null, attachments: files }); if (r.status !== 'awaiting_input') request(id, by); return { input: { name: String(b.inputFor), status: r.status } }; }
       if ((t.pendingQuestions || []).length && text) { O.answer(id, by, body); request(id, by); return; }
       T.addComment(id, { author: by, stage: t.status, body });
       if (b.interrupt && activeOf(t).active) { if (!stopRun(id)) throw new HttpError(409, 'this run was not started from the dashboard or the worker, so it cannot be interrupted here'); T.addComment(id, { author: by, stage: t.status, body: 'interrupted the run so the agent restarts with this note' }); O.enqueue(id, by); }

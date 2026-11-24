@@ -1,0 +1,919 @@
+{
+  "generatedBy": "ms-university/scripts/seedRequestDeskDemo.js",
+  "planVersion": 1,
+  "entity": {
+    "name": "RD-2 Seed Co",
+    "businessId": "6b04fbe033bad113b98931d4",
+    "firmId": "66f1e83958cdae04fc49c704",
+    "functionalCurrency": "USD",
+    "fiscalYearEnd": "December"
+  },
+  "periods": {
+    "closed": [
+      "2026-07",
+      "2026-08",
+      "2026-09",
+      "2026-10"
+    ],
+    "open": [
+      "2026-11"
+    ],
+    "lastClosedMonth": "2026-10"
+  },
+  "setupAnswers": {
+    "clearingAccounts": [
+      "1090 Undeposited Funds"
+    ],
+    "expectedClearingDays": 7,
+    "accrualCeiling": 5000,
+    "capitalizationThreshold": 2500,
+    "materialityPct": 1,
+    "closeCutoffDay": 3,
+    "reportingThreshold1099": 2000,
+    "accountsNeedingRec": [
+      "1010",
+      "1090",
+      "1200",
+      "1400",
+      "1500",
+      "1550",
+      "2000",
+      "2150"
+    ]
+  },
+  "ids": {
+    "firmId": "66f1e83958cdae04fc49c704",
+    "ownerEmail": "mo+0923@joindime.com",
+    "vendors": {
+      "harbor": "6b04fbe133bad113b989327c",
+      "northgate_v": "6b04fbe133bad113b9893283",
+      "lakeside": "6b04fbe133bad113b9893290",
+      "northwind": "6b04fbe133bad113b9893298",
+      "metro": "6b04fbe133bad113b989329c",
+      "metro_llc": "6b04fbe133bad113b98932a0",
+      "peak": "6b04fbe133bad113b98932a4",
+      "bluefin": "6b04fbe133bad113b98932a8"
+    },
+    "customers": {
+      "acme": "6b04fbe133bad113b98932aa",
+      "northgate_c": "6b04fbe133bad113b98932ad",
+      "riverside": "6b04fbe133bad113b98932af",
+      "summit": "6b04fbe133bad113b98932b1"
+    },
+    "bills": {
+      "B-1001": "6b04fbe133bad113b98932b9",
+      "B-1008": "6b04fbe233bad113b98932db",
+      "B-1015": "6b04fbe233bad113b98932f5",
+      "B-1012": "6b04fbe233bad113b989330f",
+      "B-1020": "6b04fbe333bad113b9893329",
+      "B-1024": "6b04fbe333bad113b9893343",
+      "B-1027": "6b04fbe433bad113b989335d",
+      "B-1030": "6b04fbe433bad113b9893377",
+      "B-1033": "6b04fbe433bad113b9893391",
+      "B-1038": "6b04fbe533bad113b98933ab",
+      "B-1041": "6b04fbe533bad113b98933c5",
+      "B-1042": "6b04fbe633bad113b98933df",
+      "B-1047": "6b04fbe633bad113b98933f9",
+      "B-1051": "6b04fbe633bad113b9893413"
+    },
+    "invoices": {
+      "INV-2029": "6b04fbe733bad113b9893428",
+      "INV-2030": "6b04fbe733bad113b9893448",
+      "INV-2031": "6b04fbe833bad113b9893462",
+      "INV-2032": "6b04fbe833bad113b989347c",
+      "INV-2033": "6b04fbe933bad113b9893496",
+      "INV-2034": "6b04fbe933bad113b98934b0",
+      "INV-2035": "6b04fbea33bad113b98934ca",
+      "INV-2036": "6b04fbea33bad113b98934e4",
+      "INV-2037": "6b04fbeb33bad113b98934fe",
+      "INV-2038": "6b04fbeb33bad113b9893518",
+      "INV-2039": "6b04fbec33bad113b9893532",
+      "INV-2040": "6b04fbec33bad113b989354c"
+    },
+    "journals": {
+      "opening": {
+        "journalId": "RD2-OPEN-20260630",
+        "_id": "6b04fbf033bad113b989360a"
+      },
+      "clearing": {
+        "journalId": "RD2-UDF-20260815",
+        "_id": "6b04fbf033bad113b9893614"
+      },
+      "accrual_aug": {
+        "journalId": "RD2-ACCR-20260831",
+        "_id": "6b04fbf033bad113b989361e"
+      },
+      "accrual_aug_rev": {
+        "journalId": "RD2-ACCR-20260901-REV",
+        "_id": "6b04fbf033bad113b9893628"
+      },
+      "blank_memo": {
+        "journalId": "RD2-JE-20260918",
+        "_id": "6b04fbf133bad113b9893632"
+      },
+      "round_reclass": {
+        "journalId": "RD2-RECLASS-20261015",
+        "_id": "6b04fbf133bad113b989363c"
+      }
+    },
+    "bankTransactions": {
+      "rd2-20260701-001": {
+        "date": "2026-07-01",
+        "name": "ACH Metro Rent Partners",
+        "amount": 4500
+      },
+      "rd2-20260701-002": {
+        "date": "2026-07-01",
+        "name": "Midwest Dental Equipment — dental chair",
+        "amount": 45000
+      },
+      "rd2-20260701-003": {
+        "date": "2026-07-01",
+        "name": "Summit Build Co — buildout deposit",
+        "amount": 12000
+      },
+      "rd2-20260701-004": {
+        "date": "2026-07-01",
+        "name": "Granite Mutual Insurance — annual policy",
+        "amount": 3600
+      },
+      "rd2-20260712-005": {
+        "date": "2026-07-12",
+        "name": "PEAK FITNESS CLUB",
+        "amount": 89
+      },
+      "rd2-20260715-006": {
+        "date": "2026-07-15",
+        "name": "ACH Harbor Supply LLC",
+        "amount": 1180
+      },
+      "rd2-20260725-007": {
+        "date": "2026-07-25",
+        "name": "Rippling Payroll — net wages",
+        "amount": 18500
+      },
+      "rd2-20260725-008": {
+        "date": "2026-07-25",
+        "name": "Rippling Payroll — employer taxes",
+        "amount": 1415.25
+      },
+      "rd2-20260725-009": {
+        "date": "2026-07-25",
+        "name": "Rippling Payroll — 401(k) match",
+        "amount": 555
+      },
+      "rd2-20260725-010": {
+        "date": "2026-07-25",
+        "name": "Rippling Payroll — service fee",
+        "amount": 149
+      },
+      "rd2-20260730-011": {
+        "date": "2026-07-30",
+        "name": "Deposit Acme Dental",
+        "amount": 2400
+      },
+      "rd2-20260731-012": {
+        "date": "2026-07-31",
+        "name": "Monthly service charge",
+        "amount": 25
+      },
+      "rd2-20260803-013": {
+        "date": "2026-08-03",
+        "name": "ACH Metro Rent Partners",
+        "amount": 4500
+      },
+      "rd2-20260812-014": {
+        "date": "2026-08-12",
+        "name": "Deposit Riverside Clinic",
+        "amount": 1850
+      },
+      "rd2-20260812-015": {
+        "date": "2026-08-12",
+        "name": "PEAK FITNESS CLUB",
+        "amount": 89
+      },
+      "rd2-20260820-016": {
+        "date": "2026-08-20",
+        "name": "ACH Northwind Software",
+        "amount": 2200
+      },
+      "rd2-20260825-017": {
+        "date": "2026-08-25",
+        "name": "Rippling Payroll — net wages",
+        "amount": 18500
+      },
+      "rd2-20260825-018": {
+        "date": "2026-08-25",
+        "name": "Rippling Payroll — employer taxes",
+        "amount": 1415.25
+      },
+      "rd2-20260825-019": {
+        "date": "2026-08-25",
+        "name": "Rippling Payroll — 401(k) match",
+        "amount": 555
+      },
+      "rd2-20260825-020": {
+        "date": "2026-08-25",
+        "name": "Rippling Payroll — service fee",
+        "amount": 149
+      },
+      "rd2-20260828-021": {
+        "date": "2026-08-28",
+        "name": "Check #1041 Lakeside Legal LLP",
+        "amount": 2500
+      },
+      "rd2-20260831-022": {
+        "date": "2026-08-31",
+        "name": "Monthly service charge",
+        "amount": 25
+      },
+      "rd2-20260831-023": {
+        "date": "2026-08-31",
+        "name": "Deposit Acme Dental",
+        "amount": 2400
+      },
+      "rd2-20260901-024": {
+        "date": "2026-09-01",
+        "name": "ACH Metro Rent Partners",
+        "amount": 4500
+      },
+      "rd2-20260909-025": {
+        "date": "2026-09-09",
+        "name": "DELTA AIR LINES",
+        "amount": 1284.6
+      },
+      "rd2-20260911-026": {
+        "date": "2026-09-11",
+        "name": "MARRIOTT HOTELS",
+        "amount": 2310
+      },
+      "rd2-20260912-027": {
+        "date": "2026-09-12",
+        "name": "PEAK FITNESS CLUB",
+        "amount": 89
+      },
+      "rd2-20260915-028": {
+        "date": "2026-09-15",
+        "name": "Deposit Summit Labs",
+        "amount": 5200
+      },
+      "rd2-20260922-029": {
+        "date": "2026-09-22",
+        "name": "ACH Metro Rent Partners LLC",
+        "amount": 850
+      },
+      "rd2-20260925-030": {
+        "date": "2026-09-25",
+        "name": "Rippling Payroll — net wages",
+        "amount": 18500
+      },
+      "rd2-20260925-031": {
+        "date": "2026-09-25",
+        "name": "Rippling Payroll — employer taxes",
+        "amount": 1415.25
+      },
+      "rd2-20260925-032": {
+        "date": "2026-09-25",
+        "name": "Rippling Payroll — 401(k) match",
+        "amount": 555
+      },
+      "rd2-20260925-033": {
+        "date": "2026-09-25",
+        "name": "Rippling Payroll — service fee",
+        "amount": 149
+      },
+      "rd2-20260930-034": {
+        "date": "2026-09-30",
+        "name": "Monthly service charge",
+        "amount": 25
+      },
+      "rd2-20260930-035": {
+        "date": "2026-09-30",
+        "name": "Deposit Riverside Clinic",
+        "amount": 1850
+      },
+      "rd2-20261001-036": {
+        "date": "2026-10-01",
+        "name": "ACH Metro Rent Partners",
+        "amount": 4500
+      },
+      "rd2-20261006-037": {
+        "date": "2026-10-06",
+        "name": "Northwind Software — annual license",
+        "amount": 14400
+      },
+      "rd2-20261007-038": {
+        "date": "2026-10-07",
+        "name": "ACH Northgate Cleaning Services Inc",
+        "amount": 1350
+      },
+      "rd2-20261012-039": {
+        "date": "2026-10-12",
+        "name": "PEAK FITNESS CLUB",
+        "amount": 89
+      },
+      "rd2-20261014-040": {
+        "date": "2026-10-14",
+        "name": "ACH Blue Fin Catering",
+        "amount": 418.2
+      },
+      "rd2-20261015-041": {
+        "date": "2026-10-15",
+        "name": "ACH Blue Fin Catering",
+        "amount": 418.2
+      },
+      "rd2-20261020-042": {
+        "date": "2026-10-20",
+        "name": "ACH Harbor Supply LLC",
+        "amount": 2347.5
+      },
+      "rd2-20261021-043": {
+        "date": "2026-10-21",
+        "name": "Deposit Acme Dental",
+        "amount": 2400
+      },
+      "rd2-20261025-044": {
+        "date": "2026-10-25",
+        "name": "Rippling Payroll — net wages",
+        "amount": 18500
+      },
+      "rd2-20261025-045": {
+        "date": "2026-10-25",
+        "name": "Rippling Payroll — employer taxes",
+        "amount": 1415.25
+      },
+      "rd2-20261025-046": {
+        "date": "2026-10-25",
+        "name": "Rippling Payroll — 401(k) match",
+        "amount": 555
+      },
+      "rd2-20261025-047": {
+        "date": "2026-10-25",
+        "name": "Rippling Payroll — service fee",
+        "amount": 149
+      },
+      "rd2-20261030-048": {
+        "date": "2026-10-30",
+        "name": "Monthly service charge",
+        "amount": 25
+      },
+      "rd2-20261030-049": {
+        "date": "2026-10-30",
+        "name": "Deposit Summit Labs",
+        "amount": 5200
+      },
+      "rd2-20261105-050": {
+        "date": "2026-11-05",
+        "name": "Deposit Acme Dental",
+        "amount": 1500
+      },
+      "rd2-20261107-051": {
+        "date": "2026-11-07",
+        "name": "ZELLE PAYMENT J MARTINEZ",
+        "amount": 640
+      },
+      "rd2-20261110-052": {
+        "date": "2026-11-10",
+        "name": "Deposit Northgate Cleaning Services Inc",
+        "amount": 4800
+      },
+      "rd2-20261112-053": {
+        "date": "2026-11-12",
+        "name": "PEAK FITNESS CLUB",
+        "amount": 89
+      },
+      "rd2-20261112-054": {
+        "date": "2026-11-12",
+        "name": "AMZN Mktp US*2K4",
+        "amount": 212.37
+      },
+      "rd2-20261114-055": {
+        "date": "2026-11-14",
+        "name": "Deposit Riverside Clinic",
+        "amount": 1850
+      },
+      "rd2-20261118-056": {
+        "date": "2026-11-18",
+        "name": "Check #1077 Lakeside Legal LLP",
+        "amount": 6250
+      },
+      "rd2-20261120-057": {
+        "date": "2026-11-20",
+        "name": "Deposit Summit Labs",
+        "amount": 5200
+      },
+      "rd2-20261120-058": {
+        "date": "2026-11-20",
+        "name": "Monthly service charge",
+        "amount": 25
+      },
+      "rd2-20261125-059": {
+        "date": "2026-11-25",
+        "name": "Rippling Payroll — net wages",
+        "amount": 18500
+      },
+      "rd2-20261125-060": {
+        "date": "2026-11-25",
+        "name": "Rippling Payroll — employer taxes",
+        "amount": 1415.25
+      },
+      "rd2-20261125-061": {
+        "date": "2026-11-25",
+        "name": "Rippling Payroll — 401(k) match",
+        "amount": 555
+      },
+      "rd2-20261125-062": {
+        "date": "2026-11-25",
+        "name": "Rippling Payroll — service fee",
+        "amount": 149
+      }
+    },
+    "businessId": "6b04fbe033bad113b98931d4",
+    "bankAccountId": "manual_6b04fbe033bad113b9893274",
+    "harborAchTransactionId": "rd2-20261020-042",
+    "fixedAssetId": "FA-1000",
+    "prepaidId": "90e2fb983c58470e4d29a950",
+    "checklistId": "6b04fbf133bad113b989365c",
+    "closedPeriods": [
+      "July 2026",
+      "August 2026",
+      "September 2026",
+      "October 2026"
+    ],
+    "verification": {
+      "accountsPayable": {
+        "expected": 2697.5,
+        "actual": 2697.5
+      },
+      "accountsReceivable": {
+        "expected": 5700,
+        "actual": 5700
+      },
+      "prepaidExpenses": {
+        "expected": 2700,
+        "actual": 2700
+      },
+      "accumulatedDepreciation": {
+        "expected": -2250,
+        "actual": -2250
+      },
+      "undepositedFunds": {
+        "expected": -3525,
+        "actual": -3525
+      }
+    }
+  },
+  "recipes": {
+    "R01": {
+      "title": "Uncategorised bank transactions (assumed recipe title)",
+      "assumed": true,
+      "exceptions": [
+        {
+          "date": "2026-11-07",
+          "name": "ZELLE PAYMENT J MARTINEZ",
+          "amount": "640.00"
+        },
+        {
+          "date": "2026-11-12",
+          "name": "AMZN Mktp US*2K4",
+          "amount": "212.37"
+        }
+      ],
+      "count": 2
+    },
+    "R02": {
+      "title": "Recurring vendor payment missing",
+      "exceptions": [
+        {
+          "vendor": "Metro Rent Partners",
+          "missingMonth": "2026-11",
+          "priorPayments": [
+            {
+              "date": "2026-07-01",
+              "amount": "4500.00"
+            },
+            {
+              "date": "2026-08-03",
+              "amount": "4500.00"
+            },
+            {
+              "date": "2026-09-01",
+              "amount": "4500.00"
+            },
+            {
+              "date": "2026-10-01",
+              "amount": "4500.00"
+            }
+          ],
+          "expectedAmount": "4500.00"
+        }
+      ],
+      "note": "Rent paid 4,500.00 on Jul, Aug, Sep and Oct; no payment and no bill in Nov 2026."
+    },
+    "R03": {
+      "title": "Clearing account items older than expectedClearingDays",
+      "clearingAccounts": [
+        "1090 Undeposited Funds"
+      ],
+      "exceptions": [
+        {
+          "account": "1090 Undeposited Funds",
+          "date": "2026-08-15",
+          "amount": "1275.00",
+          "journalId": "RD2-UDF-20260815",
+          "ageAt2026_11_30_days": 107
+        }
+      ],
+      "balances": {
+        "undepositedFunds_2026_10_31": "1275.00",
+        "undepositedFunds_2026_11_30": "-3525.00"
+      },
+      "note": "The 4,800.00 Northgate receipt on 10 Nov is also in 1090 (see R53) and is 20 days old at 30 Nov — within the 7-day window only if judged at run date; list it separately."
+    },
+    "R04": {
+      "title": "Overdue receivables (assumed recipe title)",
+      "assumed": true,
+      "exceptions": [
+        {
+          "invoice": "INV-2031",
+          "customer": "Northgate Cleaning Services Inc",
+          "dueDate": "2026-10-31",
+          "amount": "3200.00"
+        }
+      ]
+    },
+    "R05": {
+      "title": "Fixed assets / CIP review",
+      "exceptions": [
+        {
+          "kind": "cip_inactive",
+          "account": "1590 Construction in Progress",
+          "amount": "12000.00",
+          "lastActivity": "2026-07-01",
+          "inactiveDaysAt2026_11_30": 152
+        },
+        {
+          "kind": "depreciation_missing",
+          "asset": "FA-1000 Dental chair",
+          "months": [
+            {
+              "month": "2026-10-31",
+              "amount": "750.00"
+            },
+            {
+              "month": "2026-11-30",
+              "amount": "750.00"
+            }
+          ]
+        }
+      ],
+      "asset": {
+        "id": "FA-1000",
+        "cost": "45000.00",
+        "lifeMonths": 60,
+        "monthly": "750.00",
+        "bookedMonths": [
+          "2026-07-31",
+          "2026-08-31",
+          "2026-09-30"
+        ],
+        "accumulatedDepreciationBooked": "2250.00"
+      }
+    },
+    "R06": {
+      "title": "Invoice date vs service period month mismatch",
+      "exceptions": [
+        {
+          "invoice": "INV-2034",
+          "invoiceDate": "2026-09-10",
+          "serviceStart": "2026-08-01",
+          "serviceEnd": "2026-08-31",
+          "amount": "1850.00"
+        },
+        {
+          "invoice": "INV-2036",
+          "invoiceDate": "2026-10-05",
+          "serviceStart": "2026-09-01",
+          "serviceEnd": "2026-09-30",
+          "amount": "5200.00"
+        }
+      ]
+    },
+    "R07": {
+      "title": "Vendors with debit AP balances",
+      "exceptions": [
+        {
+          "vendor": "Northwind Software",
+          "debitBalance": "1000.00",
+          "bill": "B-1012",
+          "billed": "1200.00",
+          "paid": "2200.00",
+          "paidOn": "2026-08-20"
+        }
+      ],
+      "apControl": {
+        "openBills": "3697.50",
+        "glAccountsPayable_2026_11_30": "2697.50"
+      }
+    },
+    "R08": {
+      "title": "Duplicate payments / duplicate bills",
+      "pairs": [
+        {
+          "kind": "bills",
+          "vendor": "Blue Fin Catering",
+          "amount": "418.20",
+          "items": [
+            {
+              "ref": "B-1038",
+              "issue_date": "2026-10-10",
+              "amount": 418.2
+            },
+            {
+              "ref": "B-1041",
+              "issue_date": "2026-10-13",
+              "amount": 418.2
+            }
+          ]
+        },
+        {
+          "kind": "bank",
+          "vendor": "Blue Fin Catering",
+          "amount": "418.20",
+          "items": [
+            {
+              "date": "2026-10-14",
+              "amount": "418.20"
+            },
+            {
+              "date": "2026-10-15",
+              "amount": "418.20"
+            }
+          ]
+        }
+      ]
+    },
+    "R09": {
+      "title": "Personal-looking / card-like merchants",
+      "exceptions": [
+        {
+          "merchant": "Peak Fitness Club",
+          "amount": "89.00",
+          "months": [
+            "2026-07",
+            "2026-08",
+            "2026-09",
+            "2026-10",
+            "2026-11"
+          ],
+          "codedTo": "6200 Meals & Entertainment",
+          "memo": null
+        }
+      ]
+    },
+    "R20": {
+      "title": "Prepaid schedule vs GL variance",
+      "prepaid": {
+        "description": "Commercial insurance policy — Granite Mutual (1 Jul 2026 – 30 Jun 2027)",
+        "total": "3600.00",
+        "monthly": "300.00",
+        "start": "2026-07-01",
+        "end": "2027-06-30",
+        "amortisedBooked": "900.00",
+        "bookedMonths": [
+          "2026-07-31",
+          "2026-08-31",
+          "2026-09-30"
+        ]
+      },
+      "variance": {
+        "at2026_10_31": {
+          "scheduleBalance": "2400.00",
+          "glBalance1400": "2700.00",
+          "variance": "300.00"
+        },
+        "at2026_11_30": {
+          "scheduleBalance": "2100.00",
+          "glBalance1400": "2700.00",
+          "variance": "600.00"
+        }
+      }
+    },
+    "R23": {
+      "title": "Post-close accrual candidates",
+      "exceptions": [
+        {
+          "vendor": "Lakeside Legal LLP",
+          "bill": "B-1051",
+          "billDate": "2026-11-04",
+          "servicePeriod": "2026-10-01..2026-10-31",
+          "description": "Legal services rendered October 2026",
+          "amount": "6250.00",
+          "accrualExists": false,
+          "underAccrualCeiling": false
+        }
+      ],
+      "note": "Amount is above accrualCeiling 5,000 — the desk must propose the accrual rather than auto-apply."
+    },
+    "R25": {
+      "title": "Prepaid candidates coded to expense",
+      "exceptions": [
+        {
+          "vendor": "Northwind Software",
+          "date": "2026-10-06",
+          "amount": "14400.00",
+          "codedTo": "6120 Software Expense",
+          "servicePeriod": "2026-10-01..2027-09-30",
+          "monthly": "1200.00",
+          "prepaidAt2026_10_31": "13200.00",
+          "prepaidAt2026_11_30": "12000.00"
+        }
+      ]
+    },
+    "R29": {
+      "title": "Close checklist completeness",
+      "checklist": {
+        "period": "2026-10",
+        "status": "in_progress",
+        "tasks": 6,
+        "completedWithAttachments": 4,
+        "open": [
+          "Post depreciation and prepaid amortisation",
+          "Record month-end accruals"
+        ]
+      }
+    },
+    "R31": {
+      "title": "GL hygiene",
+      "exceptions": [
+        {
+          "kind": "blank_description",
+          "journalId": "RD2-JE-20260918",
+          "date": "2026-09-18",
+          "amount": "312.40"
+        },
+        {
+          "kind": "round_number",
+          "journalId": "RD2-RECLASS-20261015",
+          "date": "2026-10-15",
+          "amount": "10000.00",
+          "from": "6300 Travel",
+          "to": "6200 Meals & Entertainment"
+        }
+      ]
+    },
+    "R33": {
+      "title": "Customer credits alongside open invoices",
+      "exceptions": [
+        {
+          "customer": "Acme Dental",
+          "unappliedCredit": "1500.00",
+          "creditDate": "2026-11-05",
+          "creditAccount": "1200 Accounts Receivable",
+          "openInvoice": "INV-2038",
+          "openAmount": "2400.00",
+          "dueDate": "2026-11-27"
+        }
+      ]
+    },
+    "R42": {
+      "title": "1099 readiness — vendors paid by check/ACH above threshold without TIN",
+      "threshold": 2000,
+      "exceptions": [
+        {
+          "vendor": "Lakeside Legal LLP",
+          "paidByCheckYtd": "8750.00",
+          "checks": [
+            {
+              "number": "1041",
+              "date": "2026-08-28",
+              "amount": "2500.00"
+            },
+            {
+              "number": "1077",
+              "date": "2026-11-18",
+              "amount": "6250.00"
+            }
+          ],
+          "tinOnFile": false,
+          "is1099Eligible": true
+        }
+      ],
+      "nearDuplicateVendors": [
+        {
+          "a": "Metro Rent Partners",
+          "b": "Metro Rent Partners LLC",
+          "sameAddress": "200 Commerce Street, Suite 4, Richmond VA 23219",
+          "tinOnFile": {
+            "Metro Rent Partners": true,
+            "Metro Rent Partners LLC": false
+          }
+        }
+      ]
+    },
+    "R52": {
+      "title": "Depreciation not posted",
+      "exceptions": [
+        {
+          "asset": "FA-1000 Dental chair",
+          "month": "2026-10-31",
+          "amount": "750.00"
+        },
+        {
+          "asset": "FA-1000 Dental chair",
+          "month": "2026-11-30",
+          "amount": "750.00"
+        }
+      ]
+    },
+    "R53": {
+      "title": "Unapplied receipts matching open invoices",
+      "exceptions": [
+        {
+          "customer": "Northgate Cleaning Services Inc",
+          "receiptDate": "2026-11-10",
+          "receiptAmount": "4800.00",
+          "account": "1090 Undeposited Funds",
+          "matches": [
+            {
+              "invoice": "INV-2031",
+              "dueDate": "2026-10-31",
+              "amount": "3200.00"
+            },
+            {
+              "invoice": "INV-2040",
+              "dueDate": "2026-11-15",
+              "amount": "1600.00"
+            }
+          ],
+          "sum": "4800.00"
+        }
+      ]
+    },
+    "R56": {
+      "title": "Bank payment coded to expense that matches an open bill",
+      "exceptions": [
+        {
+          "vendor": "Harbor Supply LLC",
+          "bankDate": "2026-10-20",
+          "bankAmount": "2347.50",
+          "codedTo": "5100 Supplies",
+          "bill": "B-1042",
+          "billDate": "2026-10-12",
+          "billAmount": "2347.50",
+          "tier": "A"
+        }
+      ]
+    },
+    "R57": {
+      "title": "Open AP past due / AP aging (assumed recipe title)",
+      "assumed": true,
+      "exceptions": [
+        {
+          "bill": "B-1042",
+          "vendor": "Harbor Supply LLC",
+          "issueDate": "2026-10-12",
+          "dueDate": "2026-11-11",
+          "amount": "2347.50"
+        },
+        {
+          "bill": "B-1047",
+          "vendor": "Northgate Cleaning Services Inc",
+          "issueDate": "2026-10-31",
+          "dueDate": "2026-11-30",
+          "amount": "1350.00"
+        }
+      ],
+      "openApTotal": "3697.50"
+    },
+    "R58": {
+      "title": "Post-close activity dated into or affecting a closed month (assumed recipe title)",
+      "assumed": true,
+      "exceptions": [
+        {
+          "bill": "B-1051",
+          "vendor": "Lakeside Legal LLP",
+          "billDate": "2026-11-04",
+          "relatesToClosedMonth": "2026-10",
+          "amount": "6250.00"
+        }
+      ],
+      "note": "Jul–Oct 2026 are locked; any attempt to post into them must be refused by the API (403 closed period)."
+    }
+  },
+  "controlTotals": {
+    "bank": {
+      "opening_2026_06_30": "250000.00",
+      "ending_2026_11_30": "66022.88",
+      "transactions": 62
+    },
+    "ar": {
+      "openInvoices": "7200.00",
+      "glAccountsReceivable_2026_11_30": "5700.00"
+    },
+    "ap": {
+      "openBills": "3697.50",
+      "glAccountsPayable_2026_11_30": "2697.50"
+    }
+  }
+}

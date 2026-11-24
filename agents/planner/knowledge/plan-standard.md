@@ -36,6 +36,10 @@ Put real ids in paths (`<businessId>` above is illustrative; use the id from the
 ## Writes and tiers
 Every create/update/categorise/import/send the request implies is a `writes[]` entry. Tier A: one correct answer (a vendor from a W-9, a categorisation the rule already implies). Tier B: an amount the agent estimates (an accrual from an invoice, a bill amount). Tier C: a judgment (capitalise or expense, which period). The policy may raise a tier; it never lowers one.
 
+**Facts decide the tier, so state them.** The entity policy promotes a write to tier A only on facts it can read. Put them on the write: `{ "kind": "recode_to_bill", "count": 1, "amount": 2347.50, "facts": { "exact": true } }` where `exact` = same vendor, amount to the cent and date inside the rule's window; `rule` = a deterministic mapping rule the entity approved; `mapped` = every row maps to an account; `statedServicePeriod` = the document states the service period. Leave a fact out when you have not established it: an absent fact reads as false. When every planned write is tier A under the policy, the request skips Gate 1 and the Applier posts those items after Verify, labelled `policy@v<n>`; one tier-B or tier-C write, a child request or size L still stops at Gate 1.
+
+**Closed periods are never written.** A change dated in a locked period is a tier-C question (reopen, or an adjusting entry dated in the open period), whatever its facts. Read the period-lock state before planning a write and say which period each write lands in.
+
 ## Size L: children
 Split by entity, period or source so each child is S or M and self-contained. Give each a title, a one-paragraph body, kind, subject and done items. Do not plan calls for the parent; the Deliverer combines the children's deliverables.
 
@@ -44,3 +48,10 @@ Roughly $0.15 per call made and read, $1 to $3 for a workbook with a memo, $2 to
 
 ## scope.md
 One page: what will be done, which Dime reads, what will be proposed (count and tier), what the deliverables are, the cost estimate, the assumptions the approver can veto, the data that is missing.
+
+## Recipe steps and inputs
+When the request follows a Library recipe the prompt carries a **Recipe steps and inputs** block.
+- Plan the recipe's steps in order and name the compute verbs it lists as steps (`compute.js run <verb>`); the worker never does that arithmetic by hand.
+- Resolve every input in this order and plan the first source that exists: **connection** (an integration the entity has, read through its Dime routes) → **Dime** (a route in the map) → **standing** file on the entity (fresh within its `maxAgeDays`; stale counts as missing) → **document** from the requester. A document request is the last resort: record it in plan.json as `inputsNeeded: [{ name, period, why, acceptedTypes, standing }]` so the request parks in awaiting_input instead of the worker guessing. An optional input that is missing is noted in scope.md and the work proceeds.
+- Keep the recipe's done items; fill tokens, never drop an item. Add items only for what the request adds to the recipe.
+- The deliverable is the recipe's workbook: Exceptions first (Count and Total on the first rows), Tie-out with a Difference of 0.00, Detail, Sources (plain words: which Dime report, which period, when pulled; no routes, no receipt or tool words).

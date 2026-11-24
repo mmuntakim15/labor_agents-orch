@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Card transactions uncategorised or personal-looking",
+    "body": "List card transactions in the last closed month that are uncategorized or look personal (gym, groceries, entertainment with no business note). Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "question",
+      "worker": "investigator",
+      "writes": false,
+      "recipeId": "R09"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R09 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"Personal-looking / card-like merchants\",\"exceptions\":[{\"merchant\":\"Peak Fitness Club\",\"amount\":\"89.00\",\"months\":[\"2026-07\",\"2026-08\",\"2026-09\",\"2026-10\",\"2026-11\"],\"codedTo\":\"6200 Meals & Entertainment\",\"memo\":null}]}"
+  }
+}

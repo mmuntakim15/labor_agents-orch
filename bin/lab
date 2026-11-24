@@ -30,6 +30,12 @@ const USAGE = `lab — Dime Request Desk orchestrator
   lab status <ID> | lab board | lab metrics | lab evidence <ID>
   lab map [--force] | lab doctor [--deep] | lab worker [--once] | lab stack up|down [--backend <id>]
   lab eval [case…] [--dry-run] [--repeat <n>] [--model <name>]
+  lab recipes list | validate | match "<text>" | library            the Request Library (recipes/*.json); library writes knowledge/generated/library.json
+  lab input    <ID> --by <name> --name "<input>" [--note "<text>"] [--attach <file>…]   supply a document the desk is waiting for (awaiting_input)
+  lab policy   show|set --business <id> [--writes on|off|preview] [--by <name>]        the entity's autonomy policy (config/policy/<id>.json); preview replays 30 days
+  lab policy   earned --business <id> [--apply]                                         promotion candidates and demotions from the last 30 days
+  lab digest   --business <id> [--date YYYY-MM-DD]                                      the day's digest (runs/digest/<id>/<date>.json)
+  lab reverse  <ID> <P-n> --by <name> --reason "<why>"                                  undo one applied change through Dime (30-day window)
   lab dashboard [--port <n>]
 `;
 
@@ -42,7 +48,8 @@ async function main() {
     title: { type: 'string' }, body: { type: 'string' }, reporter: { type: 'string' }, kind: { type: 'string' }, backend: { type: 'string' }, attach: { type: 'string', multiple: true }, template: { type: 'string' }, entity: { type: 'string' }, period: { type: 'string' }, integration: { type: 'string' },
     until: { type: 'string' }, 'dry-run': { type: 'boolean' }, force: { type: 'boolean' }, once: { type: 'boolean' }, accept: { type: 'boolean' }, deep: { type: 'boolean' },
     gate: { type: 'string' }, by: { type: 'string' }, role: { type: 'string' }, note: { type: 'string' }, decision: { type: 'string' }, amount: { type: 'string' }, item: { type: 'string' },
-    text: { type: 'string' }, file: { type: 'string' }, status: { type: 'string' }, usd: { type: 'string' }, repeat: { type: 'string' }, model: { type: 'string' }, port: { type: 'string' },
+    text: { type: 'string' }, file: { type: 'string' }, status: { type: 'string' }, usd: { type: 'string' }, repeat: { type: 'string' }, model: { type: 'string' }, port: { type: 'string' }, cron: { type: 'string' },
+    business: { type: 'string' }, writes: { type: 'string' }, date: { type: 'string' }, reason: { type: 'string' }, name: { type: 'string' }, apply: { type: 'boolean' },
   };
   if (!cmd || cmd === 'help' || cmd === '--help') { process.stdout.write(USAGE); return; }
   const { values, positionals } = parseArgs({ args: argv, options: opts, allowPositionals: true });
@@ -117,6 +124,51 @@ async function main() {
     case 'doctor': { process.exitCode = (await doctor({ deep: values.deep })) ? 0 : 1; return; }
     case 'eval': { const { evaluate } = require(path.join(ROOT, 'src', 'evalrun')); const r = await evaluate({ cases: positionals, dryRun: values['dry-run'], repeat: Number(values.repeat || 1), model: values.model }); process.exitCode = r.failed ? 1 : 0; return; }
     case 'dashboard': { const UI = require(path.join(ROOT, 'dashboard', 'server')); await UI.start({ port: values.port ? Number(values.port) : undefined }); return; }
+    case 'input': {
+      const saved = [];
+      for (const f of values.attach || []) { if (!fs.existsSync(f)) throw new Error(`no such file ${f}`); const dir = path.join(T.artifactsDir(id), 'attachments'); fs.mkdirSync(dir, { recursive: true }); const name = path.basename(f).replace(/[^A-Za-z0-9._-]+/g, '-'); fs.copyFileSync(f, path.join(dir, name)); saved.push({ name, bytes: fs.statSync(f).size, mime: null, at: new Date().toISOString() }); }
+      if (saved.length) { const r0 = T.loadRequest(id); r0.attachments = [...(r0.attachments || []), ...saved]; T.saveRequest(r0); }
+      const r = O.provideInput(id, values.by, values.name, { note: values.note || null, attachments: saved });
+      console.log(`${r.id}: ${values.name} received; now ${r.status}${r.status === 'awaiting_input' ? ` (still waiting for ${O.pendingInputs(r).map((i) => i.name).join(', ')})` : ' — run it again'}`); return;
+    }
+    case 'policy': {
+      const POL = require(path.join(ROOT, 'src', 'policy'));
+      const sub = positionals[0] || 'show'; const biz = values.business; if (!biz) throw new Error('--business <id> is required');
+      if (sub === 'show') { const p = POL.load(biz); console.log(JSON.stringify({ businessId: biz, version: p.version, writesEnabled: p.writesEnabled, deskWritesEnabled: p.deskWritesEnabled, changedBy: p.changedBy, changedAt: p.changedAt, kinds: p.kinds, alwaysHuman: p.alwaysHuman, earned: p.earned, defaults: { tierByKind: p.tierByKind, tierDefault: p.tierDefault } }, null, 2)); return; }
+      if (sub === 'set') {
+        const w = String(values.writes || '').toLowerCase();
+        if (w === 'preview') { console.log(JSON.stringify({ on: POL.preview(biz, { writesEnabled: true }), off: POL.preview(biz, { writesEnabled: false }) }, null, 2)); return; }
+        if (!['on', 'off'].includes(w)) throw new Error('policy set needs --writes on|off|preview');
+        const f = POL.set(biz, { writesEnabled: w === 'on' }, values.by); console.log(`${biz}: writes ${w} (policy v${f.version}, by ${f.changedBy}); what now auto-applies over 30 days: ${JSON.stringify(POL.preview(biz, {}))}`); return;
+      }
+      if (sub === 'earned') { console.log(JSON.stringify(values.apply ? POL.applyEarned(biz) : POL.earned(biz), null, 2)); return; }
+      throw new Error('policy show | set --writes on|off|preview | earned [--apply]');
+    }
+    case 'digest': {
+      const DG = require(path.join(ROOT, 'src', 'digest'));
+      if (!values.business) throw new Error('--business <id> is required');
+      const d = DG.assemble(values.business, values.date || undefined);
+      console.log(`${values.business} ${d.date}: ${d.applied.length} applied under policy, ${d.decisions.length} decision(s) waiting, ${d.awaitingInput.length} waiting for a document, ${d.paused.length} paused, ${d.reviewSuggested.length} review suggested; ${d.totals.requests} request(s) active, ${d.totals.zeroTouch} zero-touch, ${money(d.totals.costUsd)}, ${d.totals.reversed} reversed → ${path.relative(process.cwd(), d.file)}`); return;
+    }
+    case 'reverse': {
+      const RV = require(path.join(ROOT, 'src', 'reverse'));
+      const out = await RV.reverse(id, positionals[1], values.by, values.reason);
+      console.log(`${id}: ${positionals[1]} reversed (${out.call.how}: ${out.call.method} ${out.call.path})${out.ref.id ? ` → ${out.ref.id}` : ''}`); return;
+    }
+    case 'recipes': {
+      const RC = require(path.join(ROOT, 'src', 'recipes'));
+      const sub = positionals[0] || 'list';
+      if (sub === 'list') { for (const r of RC.library()) console.log(`${r.id} v${r.version}  g${r.group} ${r.groupName.padEnd(32)} ${r.level}  ${r.cadence.padEnd(22)} ${r.title}`); return; }
+      if (sub === 'validate') { const v = RC.validateAll(); for (const it of v.items) console.log(`${it.ok ? '✔' : '✖'} ${it.file}${it.errors.length ? `\n    ${it.errors.join('\n    ')}` : ''}${it.warnings.length ? `\n    ⚠ ${it.warnings.join('\n    ⚠ ')}` : ''}`); console.log(v.ok ? `${v.items.length} recipe(s) valid` : 'some recipes are invalid'); process.exitCode = v.ok ? 0 : 1; return; }
+      if (sub === 'match') { const text = positionals.slice(1).join(' ') || values.text; if (!text) throw new Error('recipes match "<text>"'); const hits = RC.match(text); if (!hits.length) { console.log('no match'); return; } const lib = Object.fromEntries(RC.library().map((r) => [r.id, r])); for (const h of hits) console.log(`${h.id}  ${h.score.toFixed(3)}${h.score >= O.RECIPE_MATCH_MIN ? '  ← adopted by intake' : ''}  ${lib[h.id] ? lib[h.id].title : '(candidate)'}`); return; }
+      if (sub === 'library') { const r = RC.writeLibraryJson(); console.log(`${r.count} recipe(s) written to ${path.relative(process.cwd(), r.file)}`); return; }
+      // candidates (FR-37): compile a delivered request, list, promote (cron as the positional after the id, or --text), discard
+      if (sub === 'compile') { if (!positionals[1]) throw new Error('recipes compile <REQ-n>'); const r = RC.compile(positionals[1]); if (!r.ok) { console.log(`${positionals[1]} not compiled:\n    ${r.errors.join('\n    ')}`); process.exitCode = 1; return; } console.log(`${r.candidate.id} written to ${path.relative(process.cwd(), r.file)} (learned from ${positionals[1]}; eval case ${path.relative(process.cwd(), r.caseDir)})${r.warnings.length ? `\n    ⚠ ${r.warnings.join('\n    ⚠ ')}` : ''}`); return; }
+      if (sub === 'candidates') { const cs = RC.candidates(); if (!cs.length) { console.log('no candidates'); return; } for (const c of cs) console.log(`${c.id.padEnd(44)} used ${String(c.used).padStart(2)}  learned from ${(c.learnedFrom || []).join(', ')}  ${c.kind}/${c.worker}  ${c.title}`); return; }
+      if (sub === 'promote') { if (!positionals[1]) throw new Error('recipes promote <cand-slug> --by <name> ["<cron>"]'); const r = RC.promote(positionals[1], { by: values.by, cron: values.cron || positionals[2] || values.text || null }); console.log(`${positionals[1]} → ${r.recipe.id} v1 (${path.relative(process.cwd(), r.file)}); run \`lab recipes library\` to refresh the mirror`); return; }
+      if (sub === 'discard') { if (!positionals[1]) throw new Error('recipes discard <cand-slug> --by <name>'); const r = RC.discard(positionals[1], values.by); console.log(`${positionals[1]} moved to ${path.relative(process.cwd(), r.file)}`); return; }
+      throw new Error('recipes list | validate | match "<text>" | library | compile <REQ-n> | candidates | promote <cand> --by <name> --cron "<cron>" | discard <cand> --by <name>');
+    }
     default: throw new Error(`unknown command ${cmd}\n${USAGE}`);
   }
 }
@@ -140,6 +192,7 @@ async function doctor({ deep = false } = {}) {
   try { fs.mkdirSync(T.requestsDir(), { recursive: true }); fs.accessSync(T.requestsDir(), fs.constants.W_OK); ok(`request store writable at ${T.requestsDir()}`); } catch { bad('request store not writable'); }
   for (const a of Object.keys(O.agents)) { try { if (!O.agents[a].deterministic) require(path.join(ROOT, 'src', 'knowledge')).buildSystemPrompt(a); } catch (e) { bad(`agent ${a}: ${e.message}`); } }
   ok(`${Object.keys(O.agents).length} agents load`);
+  try { const v = require(path.join(ROOT, 'src', 'recipes')).validateAll(); if (v.ok) ok(`${v.items.length} recipes validate`); else bad(`recipes invalid: ${v.items.filter((i) => !i.ok).map((i) => i.file).join(', ')} (run \`lab recipes validate\`)`); } catch (e) { bad(`recipes: ${e.message}`); }
   for (const r of rows) console.log(r);
   return !rows.some((r) => r.startsWith('✖'));
 }

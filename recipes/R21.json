@@ -1,0 +1,104 @@
+{
+  "id": "R21",
+  "version": 1,
+  "group": 2,
+  "title": "Invoice to payment matching for one selected vendor",
+  "prompt": "For a selected vendor, match every invoice this year to its payment(s). Flag split payments, overpayments, possible duplicate payments and payments coded to different accounts.",
+  "keywords": [
+    "selected vendor",
+    "one vendor",
+    "invoice matching",
+    "payment application",
+    "split payment",
+    "partial payment",
+    "overpayment",
+    "unapplied payment",
+    "coding",
+    "vendor statement",
+    "remittance",
+    "payment history",
+    "open invoices"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": null,
+    "periodRule": "year_to_date",
+    "event": null,
+    "cadence": "on request"
+  },
+  "setup": [
+    {
+      "key": "vendorInScope",
+      "q": "Which vendor should be matched (name or vendor id)?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "paymentMethods",
+      "q": "Which payment methods does this vendor get paid by (ACH, check, wire, card)?",
+      "type": "list",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [],
+  "steps": [
+    "resolve the vendor in Dime and pull this year's bills and bill payments for it, plus bank and card outflows to the vendor not applied to a bill",
+    "match each invoice to its payment(s) by reference, then by amount and date; list invoices paid by more than one payment (split) and payments covering more than one invoice",
+    "list overpayments (payments above the invoice), unpaid invoices and payments with no invoice",
+    "run duplicate_pairs over the payments (same amount within 30 days) for possible duplicate payments",
+    "compare the expense account on each invoice with the vendor's usual account and list payments coded elsewhere",
+    "tie: invoices less payments equals the vendor's open balance in Dime"
+  ],
+  "compute": [
+    "duplicate_pairs"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the invoice id and the payment id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "vendor-invoice-payment-match.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "vendor-invoice-payment-match.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "vendor-invoice-payment-match.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every invoice shows its payment(s); split payments, overpayments, possible duplicates and different coding are separate exception types with a reason each"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "vendor-invoice-payment-match.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r21-seed-co"
+  ]
+}

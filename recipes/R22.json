@@ -1,0 +1,123 @@
+{
+  "id": "R22",
+  "version": 1,
+  "group": 3,
+  "title": "Monthly balance sheet reconciliation package",
+  "prompt": "Prepare a monthly balance sheet reconciliation package with account rollforwards, supporting transactions, aging and unresolved items.",
+  "keywords": [
+    "balance sheet reconciliation",
+    "rec package",
+    "rollforward",
+    "workpapers",
+    "aging",
+    "unresolved items",
+    "close package",
+    "account reconciliations",
+    "month end"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "size": "L",
+  "children": [
+    "R10",
+    "R20",
+    "R28",
+    "R33"
+  ],
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Prior month reconciliation workpapers",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": true,
+      "acceptedTypes": [
+        "xlsx",
+        "pdf"
+      ]
+    }
+  ],
+  "steps": [
+    "this is a composed size L parent: plan children from recipes R10 (bank reconciliations), R20 (prepaid tie-out), R28 (fixed assets and CIP) and R33; the parent assembles their workbooks and never redoes their work",
+    "pull the as-of trial balance for the period and list every balance sheet account with a balance",
+    "read the prior month's workpapers from Dime or the standing folder for opening balances",
+    "run rollforward per balance sheet account (opening from the prior month, additions, reductions, closing) and write it to the Detail sheet",
+    "attach supporting transactions and agings (AR, AP) per account; mark each account reconciled by a child, supported by a schedule, or unresolved",
+    "tie the rollforward closings to the trial balance; list unresolved items with the account and what is missing"
+  ],
+  "compute": [
+    "rollforward"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The sum of balance sheet closings on the Tie-out equals Dime's trial balance as of the period end",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "trial_balance",
+        "asOf": "{{period.end}}",
+        "name": "balance-sheet-rec-package.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The Detail sheet rolls forward every balance sheet account: opening plus additions less reductions equals closing on every row and the totals row equals the column sums",
+      "evaluator": "rollforward_ties",
+      "args": {
+        "name": "balance-sheet-rec-package.xlsx",
+        "sheet": "Detail"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the account id and the child workbook, schedule or transaction id behind it",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "balance-sheet-rec-package.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "balance-sheet-rec-package.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "balance-sheet-rec-package.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Every balance sheet account appears once as reconciled, supported or unresolved; the children's workbooks are referenced, not rebuilt, and an unresolved item says what is missing"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "balance-sheet-rec-package.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 20,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r22-seed-co"
+  ]
+}

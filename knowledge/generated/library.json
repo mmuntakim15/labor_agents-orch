@@ -1,0 +1,1712 @@
+{
+ "builtAt": "2026-11-24T16:55:58.582Z",
+ "count": 61,
+ "recipes": [
+  {
+   "id": "R01",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Balance sheet accounts without a reconciliation or supporting schedule",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "accountsNeedingRec",
+    "externalRecLocation"
+   ],
+   "inputs": [
+    "Reconciliation workpapers kept outside Dime"
+   ],
+   "prompt": "Which balance sheet accounts have balances but no reconciliation or supporting schedule for the last closed month?",
+   "setupQuestions": [
+    {
+     "key": "accountsNeedingRec",
+     "q": "Which balance sheet accounts need a reconciliation or schedule every month?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "externalRecLocation",
+     "q": "Where are reconciliations and schedules kept when they are not in Dime (folder, workbook, system)?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R02",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Recurring vendors with no expense this month",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "excludedVendors"
+   ],
+   "inputs": [
+    "Vendor contracts or recurring invoices"
+   ],
+   "prompt": "Which recurring vendors had expenses in each of the prior three months but no expense recorded this month?",
+   "setupQuestions": [
+    {
+     "key": "excludedVendors",
+     "q": "Which vendors bill quarterly or annually, or are known to be seasonal, and should be left out?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R03",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Clearing account items open more than 30 days",
+   "cadence": "weekly",
+   "level": "L4",
+   "setupKeys": [
+    "clearingAccounts",
+    "expectedClearingDays"
+   ],
+   "inputs": [
+    "Bank statements or processor settlement reports"
+   ],
+   "prompt": "Show all clearing account items older than 30 days and explain what each appears to relate to.",
+   "setupQuestions": [
+    {
+     "key": "clearingAccounts",
+     "q": "Which accounts are clearing or suspense accounts?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "expectedClearingDays",
+     "q": "How many days should an item normally take to clear?",
+     "type": "number",
+     "scope": "*",
+     "default": 30
+    }
+   ]
+  },
+  {
+   "id": "R04",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Vendors coded inconsistently across accounts or departments",
+   "cadence": "quarterly",
+   "level": "L4",
+   "setupKeys": [
+    "allowedSplits"
+   ],
+   "inputs": [
+    "Approved account and department coding guide"
+   ],
+   "prompt": "Identify vendors whose expenses are coded inconsistently across accounts or departments over the last quarter.",
+   "setupQuestions": [
+    {
+     "key": "allowedSplits",
+     "q": "Which vendors are allowed to be coded to more than one account or department (and which)?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R05",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Fixed assets without depreciation and inactive CIP",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "cipAccounts"
+   ],
+   "inputs": [
+    "Fixed asset register kept outside Dime"
+   ],
+   "prompt": "Which fixed assets have been placed in service but have no depreciation recorded, and which construction-in-progress items have been inactive for more than 90 days?",
+   "setupQuestions": [
+    {
+     "key": "cipAccounts",
+     "q": "Which accounts hold construction in progress?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R06",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Invoices whose service period differs from the invoice month",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Customer invoices or billing schedules not attached in Dime"
+   ],
+   "prompt": "Which customer invoices have service periods that differ from the invoice month, and what amounts relate to each service month?",
+   "setupQuestions": []
+  },
+  {
+   "id": "R07",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "AP balance by vendor at each month end with debit balances and duplicate vendor names",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [],
+   "prompt": "Show the AP balance by vendor at each month end this year. Flag vendors with debit balances and vendor records that look like the same vendor under two names.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R08",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Possible duplicate bills or payments",
+   "cadence": "weekly",
+   "level": "L4",
+   "setupKeys": [
+    "sameAmountVendors"
+   ],
+   "inputs": [],
+   "prompt": "Find possible duplicate bills or payments this year: same vendor and the same or nearly the same amount within 30 days.",
+   "setupQuestions": [
+    {
+     "key": "sameAmountVendors",
+     "q": "Which vendors legitimately bill the same amount repeatedly (rent, subscriptions) and should be excluded?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R09",
+   "version": 1,
+   "group": 1,
+   "groupName": "Zero-touch answers",
+   "title": "Card transactions uncategorised or personal-looking",
+   "cadence": "weekly",
+   "level": "L4",
+   "setupKeys": [
+    "cardPolicy",
+    "cardholders"
+   ],
+   "inputs": [],
+   "prompt": "List card transactions in the last closed month that are uncategorized or look personal (gym, groceries, entertainment with no business note).",
+   "setupQuestions": [
+    {
+     "key": "cardPolicy",
+     "q": "What does the card policy say about receipts, categories and business notes?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "cardholders",
+     "q": "Who holds a card and who approves their spend?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R10",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Bank statement to general ledger reconciliation for the last closed month",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "bankAccountsInScope",
+    "differenceThreshold"
+   ],
+   "inputs": [
+    "Bank statements, one per account in scope"
+   ],
+   "prompt": "Reconcile each bank statement to the general ledger for the last closed month. Match transactions and explain every outstanding difference.",
+   "setupQuestions": [
+    {
+     "key": "bankAccountsInScope",
+     "q": "Which bank accounts are reconciled every month?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "differenceThreshold",
+     "q": "Below what amount is an unexplained difference recorded as a note rather than an exception?",
+     "type": "number",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R11",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Corporate card and expense platform reconciliation to the ledger",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "platformAccountMap"
+   ],
+   "inputs": [
+    "Card platform export"
+   ],
+   "prompt": "Reconcile corporate card and expense-platform transactions to the ledger, including refunds, fees and settlements. Identify missing or duplicate postings.",
+   "setupQuestions": [
+    {
+     "key": "platformAccountMap",
+     "q": "Which ledger accounts does each card or expense platform post to (card liability or clearing, fee expense, settlement bank account)?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R12",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Vendor bill in the AP subledger with no general ledger posting",
+   "cadence": "on request",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Integration event logs for the accounts payable connection"
+   ],
+   "prompt": "Investigate why a vendor bill appears in the AP subledger but its expected posting is missing from the general ledger.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R13",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Payroll funding, payroll journal entries and bank withdrawals by pay period",
+   "cadence": "each pay run",
+   "level": "L3",
+   "setupKeys": [
+    "payrollClearingAccount",
+    "payCalendar"
+   ],
+   "inputs": [
+    "Payroll gross-to-net report for the pay period",
+    "Payroll funding report for the pay period",
+    "Bank statement covering the pay date"
+   ],
+   "prompt": "Reconcile payroll funding, payroll journal entries and actual bank withdrawals by pay period. Explain differences caused by deposits, fees or timing.",
+   "setupQuestions": [
+    {
+     "key": "payrollClearingAccount",
+     "q": "Which ledger account is the payroll clearing or payroll funding account?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "payCalendar",
+     "q": "What is the pay calendar (frequency, pay dates, the lag between period end and pay date)?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R14",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Retirement contributions withheld versus remitted to the plan",
+   "cadence": "each pay run",
+   "level": "L3",
+   "setupKeys": [
+    "planProvider",
+    "matchFormula",
+    "liabilityAccount"
+   ],
+   "inputs": [
+    "Payroll deduction export for the pay period (employee and employer retirement lines)",
+    "Plan remittance report for the same pay period"
+   ],
+   "prompt": "Reconcile employee and employer retirement contributions withheld through payroll to amounts remitted to the plan. Flag missed or duplicate deductions.",
+   "setupQuestions": [
+    {
+     "key": "planProvider",
+     "q": "Who is the retirement plan provider or recordkeeper?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "matchFormula",
+     "q": "What is the employer match formula (for example 100% of the first 3% and 50% of the next 2%)?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "liabilityAccount",
+     "q": "Which ledger account holds retirement contributions payable?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R15",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Balance in the AP foreign-exchange account: realized, unrealized or unexplained",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "fxAccounts",
+    "rateSource"
+   ],
+   "inputs": [
+    "FX gains and losses report and revaluation runs for the period"
+   ],
+   "prompt": "Investigate the balance in the AP foreign-exchange account. Trace the underlying transactions and determine whether differences are realized, unrealized or unexplained.",
+   "setupQuestions": [
+    {
+     "key": "fxAccounts",
+     "q": "Which ledger accounts hold foreign-exchange gains and losses (realized and unrealized) for payables?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "rateSource",
+     "q": "Which exchange-rate source and rate date does the entity use for bills, payments and month-end revaluation?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R16",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Intercompany receivables and payables by entity pair, invoice and currency",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "entityPairs",
+    "icAccounts",
+    "icFxPolicy"
+   ],
+   "inputs": [
+    "Intercompany matrix and reconciliation for the period"
+   ],
+   "prompt": "Reconcile intercompany receivables and payables by entity pair, invoice and currency, and explain differences before consolidation.",
+   "setupQuestions": [
+    {
+     "key": "entityPairs",
+     "q": "Which entity pairs trade with each other (parent and subsidiary, subsidiary and subsidiary)?",
+     "type": "list",
+     "scope": "recipe"
+    },
+    {
+     "key": "icAccounts",
+     "q": "Which ledger accounts are intercompany receivable and payable in each entity?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "icFxPolicy",
+     "q": "How are intercompany balances in different currencies translated and where do translation differences go?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R17",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Customer contract terms and billing schedules versus invoices and payments",
+   "cadence": "monthly",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Customer contracts and billing schedules"
+   ],
+   "prompt": "Compare customer contract terms and billing schedules to actual invoices and payments. Identify missing, duplicate or incorrectly timed billings.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R18",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Customer funds and payment clearing accounts to external statements and the GL",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "clearingAccounts",
+    "processors"
+   ],
+   "inputs": [
+    "Processor settlement report for the period",
+    "Stripe reconciliation held in Dime"
+   ],
+   "prompt": "Reconcile opening balances and current activity in customer funds or payment clearing accounts to external statements and the GL.",
+   "setupQuestions": [
+    {
+     "key": "clearingAccounts",
+     "q": "Which accounts are clearing or suspense accounts?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "processors",
+     "q": "Which payment processors settle into the clearing accounts (and which account each one uses)?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R19",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Migrated ledger validation against the prior accounting system",
+   "cadence": "on request",
+   "level": "L4",
+   "setupKeys": [
+    "accountMapping",
+    "cutoverDate",
+    "tolerance"
+   ],
+   "inputs": [
+    "Prior system trial balance as of the cutover date",
+    "Prior system balance sheet and profit and loss as of the cutover date",
+    "Prior system open AR and AP agings as of the cutover date",
+    "Prior system bank balances or bank reconciliations as of the cutover date"
+   ],
+   "prompt": "Validate a newly migrated ledger against the prior accounting system using trial balance, financial statements, open AR/AP and bank balances.",
+   "setupQuestions": [
+    {
+     "key": "accountMapping",
+     "q": "How do the prior system's accounts map to Dime's chart of accounts (a mapping table or the rule used)?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "cutoverDate",
+     "q": "What is the cutover date (the as-of date the migrated balances represent)?",
+     "type": "date",
+     "scope": "recipe"
+    },
+    {
+     "key": "tolerance",
+     "q": "What difference per account is accepted as rounding (0 means penny-exact)?",
+     "type": "number",
+     "scope": "recipe",
+     "default": 0
+    }
+   ]
+  },
+  {
+   "id": "R20",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Prepaid expense schedule tied to the prepaid GL balance",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "prepaidAccount"
+   ],
+   "inputs": [
+    "Prepaid expense schedule for the period"
+   ],
+   "prompt": "Tie the prepaid expense schedule to the prepaid GL balance at the end of the last closed month and explain any variance item by item.",
+   "setupQuestions": [
+    {
+     "key": "prepaidAccount",
+     "q": "Which ledger account (or accounts) holds prepaid expenses?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R21",
+   "version": 1,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Invoice to payment matching for one selected vendor",
+   "cadence": "on request",
+   "level": "L4",
+   "setupKeys": [
+    "vendorInScope",
+    "paymentMethods"
+   ],
+   "inputs": [],
+   "prompt": "For a selected vendor, match every invoice this year to its payment(s). Flag split payments, overpayments, possible duplicate payments and payments coded to different accounts.",
+   "setupQuestions": [
+    {
+     "key": "vendorInScope",
+     "q": "Which vendor should be matched (name or vendor id)?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "paymentMethods",
+     "q": "Which payment methods does this vendor get paid by (ACH, check, wire, card)?",
+     "type": "list",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R22",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Monthly balance sheet reconciliation package",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Prior month reconciliation workpapers"
+   ],
+   "prompt": "Prepare a monthly balance sheet reconciliation package with account rollforwards, supporting transactions, aging and unresolved items.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R23",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Invoices received after month-end for prior-period expenses not accrued",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "closeCutoffDay",
+    "accrualCeiling",
+    "accrualAccount"
+   ],
+   "inputs": [
+    "Bills received after the period end up to the close cutoff"
+   ],
+   "prompt": "Review invoices received after month-end and identify expenses relating to the prior period that have not been accrued.",
+   "setupQuestions": [
+    {
+     "key": "closeCutoffDay",
+     "q": "How many days after month-end are invoices still reviewed for the prior period (the close cutoff)?",
+     "type": "number",
+     "scope": "*"
+    },
+    {
+     "key": "accrualCeiling",
+     "q": "Up to what amount may an accrual with a stated service period be proposed for one-click approval (tier A)?",
+     "type": "number",
+     "scope": "*"
+    },
+    {
+     "key": "accrualAccount",
+     "q": "Which ledger account holds accrued expenses?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R24",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Professional services time entries into the vendor accrual workbook",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Itemized professional services invoices with time entries",
+    "Vendor accrual workbook"
+   ],
+   "prompt": "Extract time entries from professional services invoices, separate work date from invoice date, and update the existing vendor accrual workbook.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R25",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Prepaid expense rollforward from invoices and service dates",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "capitalizationThreshold",
+    "amortizationMethod",
+    "prepaidAccount"
+   ],
+   "inputs": [
+    "Vendor invoices and service agreements for prepaid items"
+   ],
+   "prompt": "Build a prepaid expense rollforward from invoices and contractual service dates. Calculate current-month amortization and remaining balances.",
+   "setupQuestions": [
+    {
+     "key": "capitalizationThreshold",
+     "q": "Below what amount is an invoice expensed when paid rather than set up as a prepaid or an asset?",
+     "type": "number",
+     "scope": "*"
+    },
+    {
+     "key": "amortizationMethod",
+     "q": "How are prepaids amortized (straight-line by month, by day, half-month convention)?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "prepaidAccount",
+     "q": "Which ledger account (or accounts) holds prepaid expenses?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R26",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Payroll journal entry from the gross-to-net report",
+   "cadence": "each pay run",
+   "level": "L3",
+   "setupKeys": [
+    "payrollMapping",
+    "payrollClearingAccount"
+   ],
+   "inputs": [
+    "Gross-to-net payroll export for the pay period",
+    "Payroll account and department mapping workbook",
+    "Payroll funding report for the pay period"
+   ],
+   "prompt": "Prepare the monthly payroll journal entry from the gross-to-net payroll report using approved account and department mappings.",
+   "setupQuestions": [
+    {
+     "key": "payrollMapping",
+     "q": "Which ledger account and department does each payroll line (wages, employer taxes, benefits, withholdings, net pay) post to?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "payrollClearingAccount",
+     "q": "Which ledger account is the payroll clearing or payroll funding account?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R27",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Month-end payroll accrual for days worked but not yet paid",
+   "cadence": "month end",
+   "level": "L3",
+   "setupKeys": [
+    "payCalendar"
+   ],
+   "inputs": [
+    "Payroll calendar for the year",
+    "Payroll register for the last pay run before period end"
+   ],
+   "prompt": "Calculate the month-end payroll accrual for days worked but not yet paid, and prepare the reversing entry.",
+   "setupQuestions": [
+    {
+     "key": "payCalendar",
+     "q": "What is the pay calendar (frequency, pay dates, the lag between period end and pay date)?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R28",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Fixed asset and construction-in-progress review with depreciation",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "capitalizationThreshold",
+    "usefulLives",
+    "depreciationConvention",
+    "cipAccounts"
+   ],
+   "inputs": [
+    "Fixed asset and CIP workbook with in-service evidence"
+   ],
+   "prompt": "Review the fixed asset and construction-in-progress schedules. Identify assets ready for service, calculate depreciation under approved policies and propose entries.",
+   "setupQuestions": [
+    {
+     "key": "capitalizationThreshold",
+     "q": "Below what amount is an invoice expensed when paid rather than set up as a prepaid or an asset?",
+     "type": "number",
+     "scope": "*"
+    },
+    {
+     "key": "usefulLives",
+     "q": "What useful life applies to each asset class?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "depreciationConvention",
+     "q": "Which depreciation method and convention apply (straight-line, mid-month, half-year)?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "cipAccounts",
+     "q": "Which accounts hold construction in progress?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R29",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Monthly close status report",
+   "cadence": "weekly during close",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Close checklist kept outside Dime"
+   ],
+   "prompt": "Prepare a monthly close status report using the close checklist, posted entries and reconciliation evidence. Identify outstanding dependencies.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R30",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Month-end audit support package",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "auditRequestFormat",
+    "accountsInScope"
+   ],
+   "inputs": [
+    "Audit engagement artifacts and request list",
+    "Report packages for the period",
+    "Document vault files for the period",
+    "Reconciliations and schedules kept outside Dime"
+   ],
+   "prompt": "Compile a month-end audit support package from the trial balance, account schedules, reconciliations and journal-entry support.",
+   "setupQuestions": [
+    {
+     "key": "auditRequestFormat",
+     "q": "How does the auditor want the package laid out (one file per account, one binder, their request list numbering)?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "accountsInScope",
+     "q": "Which accounts does the package cover? Leave blank for every balance sheet account with a balance.",
+     "type": "accounts",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R31",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "First-pass general ledger review against the prior month",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "flagThreshold",
+    "maxExceptions"
+   ],
+   "inputs": [],
+   "prompt": "Do a first pass review of the last closed month's general ledger compared with the prior month. Flag unusual coding, possible duplicates, balances with the wrong sign, entries with no description and anything that looks out of place for this business.",
+   "setupQuestions": [
+    {
+     "key": "flagThreshold",
+     "q": "Below what amount should a ledger line not be flagged?",
+     "type": "number",
+     "scope": "*",
+     "default": 100
+    },
+    {
+     "key": "maxExceptions",
+     "q": "How many review items at most should the first pass list (ranked by size)?",
+     "type": "number",
+     "scope": "recipe",
+     "default": 60
+    }
+   ]
+  },
+  {
+   "id": "R32",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Fixed asset additions against the capitalization threshold and a depreciation recalculation",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "capitalizationThreshold",
+    "usefulLives",
+    "depreciationConvention"
+   ],
+   "inputs": [
+    "Fixed asset register and depreciation schedule",
+    "General ledger for fixed asset and expense accounts",
+    "Fixed asset register kept outside Dime"
+   ],
+   "prompt": "Review fixed asset additions this year against the capitalization threshold in policy: list capitalized items below it and expensed items above it, and recalculate the last closed month's depreciation by asset from in service date and useful life compared with what was booked.",
+   "setupQuestions": [
+    {
+     "key": "capitalizationThreshold",
+     "q": "Below what amount is an invoice expensed when paid rather than set up as a prepaid or an asset?",
+     "type": "number",
+     "scope": "*"
+    },
+    {
+     "key": "usefulLives",
+     "q": "What useful life applies to each asset class?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "depreciationConvention",
+     "q": "Which depreciation method and convention apply (straight-line, mid-month, half-year)?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R33",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Deferred revenue rollforward by customer tied to the GL",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "deferredRevenueAccounts"
+   ],
+   "inputs": [
+    "Revenue recognition waterfall and contract balances",
+    "Invoices and AR aging for the month",
+    "General ledger for the deferred revenue accounts"
+   ],
+   "prompt": "Roll forward deferred revenue by customer for the last closed month (opening, billed, recognized, closing) and tie the total to the GL.",
+   "setupQuestions": [
+    {
+     "key": "deferredRevenueAccounts",
+     "q": "Which GL accounts hold deferred revenue?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R34",
+   "version": 1,
+   "group": 3,
+   "groupName": "Close and workpapers",
+   "title": "Onboarding assessment of the books with a draft client request list",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "clientBackground",
+    "periodsInScope"
+   ],
+   "inputs": [
+    "Bank accounts, statements and reconciliations",
+    "General ledger and chart of accounts",
+    "Document vault files and open document requests"
+   ],
+   "prompt": "Assess these books as if onboarding a new client: which accounts are unreconciled, which months are missing statements, what looks miscoded, and draft the document request list to send the client.",
+   "setupQuestions": [
+    {
+     "key": "clientBackground",
+     "q": "What does the client do, who kept the books before, and what is known about their condition?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "periodsInScope",
+     "q": "Which months should the assessment cover (default: January 1 of the current year to the last closed month)?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R35",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Monthly consolidated management reporting with commentary",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "reportingStructure",
+    "commentaryThreshold",
+    "kpiDefinitions"
+   ],
+   "inputs": [
+    "Consolidation runs for the period",
+    "Report packages and realtime statements per entity",
+    "Flux analysis for the period against the prior month"
+   ],
+   "prompt": "Prepare monthly consolidated management reporting with income statement, balance sheet, cash flow and explanations of material changes.",
+   "setupQuestions": [
+    {
+     "key": "reportingStructure",
+     "q": "Which entities roll up to the parent, in what currency, and what eliminations apply?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "commentaryThreshold",
+     "q": "Above what change (in reporting currency) does a line need an explanation?",
+     "type": "number",
+     "scope": "recipe"
+    },
+    {
+     "key": "kpiDefinitions",
+     "q": "Which KPIs appear on the front page and how is each defined?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R36",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Budget versus actual by department and vendor with variance drivers",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "budgetVersion",
+    "varianceThreshold"
+   ],
+   "inputs": [
+    "Budget by department and budget versus actual",
+    "Expense transactions by department and vendor",
+    "Budget workbook"
+   ],
+   "prompt": "Compare actual expenses to budget by department and vendor. Identify the drivers of significant variances and distinguish timing from ongoing cost changes.",
+   "setupQuestions": [
+    {
+     "key": "budgetVersion",
+     "q": "Which budget version is the comparison against (name or year, and whether reforecasts replace it)?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "varianceThreshold",
+     "q": "Above what variance (amount) does a line need a driver?",
+     "type": "number",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R37",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Month-over-month payroll and contractor expense bridge",
+   "cadence": "month end",
+   "level": "L3",
+   "setupKeys": [],
+   "inputs": [
+    "Payroll register for the month and the prior month",
+    "Headcount report by month",
+    "Contractor invoices and bills for the month and the prior month"
+   ],
+   "prompt": "Explain the change in payroll and contractor expenses month over month, separating headcount, rate changes, one-time costs and timing.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R38",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "13-week cash forecast update",
+   "cadence": "weekly",
+   "level": "L4",
+   "setupKeys": [
+    "collectionLagDays",
+    "recurringCommitments",
+    "minimumCash"
+   ],
+   "inputs": [
+    "Bank balances, AR aging, AP aging and the cash forecast",
+    "Existing 13-week cash forecast workbook",
+    "Payroll schedule"
+   ],
+   "prompt": "Update the 13-week cash forecast using current bank balances, open invoices, bills, payroll and recurring contractual commitments.",
+   "setupQuestions": [
+    {
+     "key": "collectionLagDays",
+     "q": "How many days after the due date do customers pay on average?",
+     "type": "number",
+     "scope": "recipe"
+    },
+    {
+     "key": "recurringCommitments",
+     "q": "Which recurring contractual payments are not in AP yet (rent, debt service, insurance) with amount and day of month?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "minimumCash",
+     "q": "Below what cash balance should a week be flagged?",
+     "type": "number",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R39",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Why operating cash flow differs from net income this month",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "cashFlowMapping"
+   ],
+   "inputs": [
+    "Realtime statement of cash flows, balance sheet and profit and loss"
+   ],
+   "prompt": "Explain why operating cash flow differs from net income this month using working capital and noncash movements.",
+   "setupQuestions": [
+    {
+     "key": "cashFlowMapping",
+     "q": "Which balance sheet accounts belong to each cash flow line (operating, investing, financing) when Dime's default mapping is not right?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R40",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Proposed payment run for the next seven days",
+   "cadence": "weekly",
+   "level": "L3",
+   "setupKeys": [
+    "paymentRules",
+    "minimumCash",
+    "vendorPriority"
+   ],
+   "inputs": [
+    "Open bills with approval status and due dates",
+    "Bank balances and payment history"
+   ],
+   "prompt": "Prepare a proposed payment run for the next seven days, considering due dates, available cash, approvals and duplicate payment risk.",
+   "setupQuestions": [
+    {
+     "key": "paymentRules",
+     "q": "What are the payment rules (pay on due date, take discounts, hold unapproved bills, pay by ACH unless the vendor requires check)?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "minimumCash",
+     "q": "What cash balance must remain after the run?",
+     "type": "number",
+     "scope": "recipe"
+    },
+    {
+     "key": "vendorPriority",
+     "q": "Which vendors are paid first when cash is short (payroll providers, landlords, critical suppliers)?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R41",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Indirect-method cash flow statement rebuilt and reconciled to the system report",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "cashFlowMapping"
+   ],
+   "inputs": [
+    "Realtime statement of cash flows, opening and closing balance sheets and profit and loss"
+   ],
+   "prompt": "Rebuild the last closed month's cash flow statement using the indirect method from the balance sheet and income statement, compare it with the system's cash flow report, and explain every difference.",
+   "setupQuestions": [
+    {
+     "key": "cashFlowMapping",
+     "q": "Which balance sheet accounts belong to each cash flow line (operating, investing, financing) when Dime's default mapping is not right?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R42",
+   "version": 1,
+   "group": 4,
+   "groupName": "Reporting and treasury",
+   "title": "Vendors paid by ACH, check or wire for 1099 review",
+   "cadence": "year end",
+   "level": "L4",
+   "setupKeys": [
+    "reportingThreshold"
+   ],
+   "inputs": [
+    "Vendor W-9s not stored in Dime"
+   ],
+   "prompt": "List vendors paid this year by ACH, check or wire (not card), with totals, for 1099 review by the tax preparer, and flag vendors with no tax ID on file.",
+   "setupQuestions": [
+    {
+     "key": "reportingThreshold",
+     "q": "What is the 1099 reporting threshold for the year (confirmed by the tax preparer)?",
+     "type": "number",
+     "scope": "*",
+     "default": 600
+    }
+   ]
+  },
+  {
+   "id": "R43",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Customer contract review under ASC 606 and ASC 842",
+   "cadence": "monthly",
+   "level": "L3",
+   "setupKeys": [
+    "accountingPolicies",
+    "signoffOwner"
+   ],
+   "inputs": [
+    "Contract record and revenue recognition schedule in Dime",
+    "Customer contract",
+    "Amendments and side letters"
+   ],
+   "prompt": "Review a customer contract and amendments against ASC 606 and ASC 842. Summarize relevant terms, accounting alternatives, missing facts and a preliminary conclusion.",
+   "setupQuestions": [
+    {
+     "key": "accountingPolicies",
+     "q": "Which revenue and lease accounting policies has the entity adopted (practical expedients, portfolio approach, materiality)?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "signoffOwner",
+     "q": "Who signs off accounting conclusions for this entity?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R44",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Service credits and concessions: revenue and billing impact",
+   "cadence": "monthly",
+   "level": "L3",
+   "setupKeys": [],
+   "inputs": [
+    "Invoices, credit memos and the revenue recognition schedule for the customer",
+    "Customer contract with the service level and credit terms",
+    "Correspondence granting or discussing the credits",
+    "Revised billing schedule"
+   ],
+   "prompt": "Review contractual service credits and concessions to determine their potential impact on revenue recognition and billing.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R45",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Internal software project costs: capitalization review",
+   "cadence": "quarterly",
+   "level": "L3",
+   "setupKeys": [],
+   "inputs": [
+    "Projects and time entries for the quarter",
+    "General ledger for software development and payroll accounts",
+    "Project descriptions and stage documentation",
+    "Capitalization policy"
+   ],
+   "prompt": "Review internal software project costs and supporting descriptions for potential capitalization under the applicable accounting policy and guidance.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R46",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Intercompany service arrangements: recharge analysis",
+   "cadence": "quarterly",
+   "level": "L3",
+   "setupKeys": [],
+   "inputs": [
+    "Intercompany relationships and balances matrix",
+    "Actual costs by entity and cost centre for the quarter",
+    "Intercompany service agreements",
+    "Cost allocation workbook"
+   ],
+   "prompt": "Review intercompany service arrangements and actual costs. Map the transaction flows and prepare a preliminary recharge accounting analysis.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R47",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Tax compliance status and evidence gaps by jurisdiction",
+   "cadence": "quarterly",
+   "level": "L3",
+   "setupKeys": [],
+   "inputs": [
+    "Sales tax and VAT filings and jurisdiction settings",
+    "Sales transactions by jurisdiction for the quarter",
+    "Registration certificates and tax notices",
+    "Prior returns filed outside Dime",
+    "Compliance calendar"
+   ],
+   "prompt": "Review available tax registration notices, prior filings and transaction activity. Prepare a jurisdiction-specific compliance status and evidence gaps report.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R48",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Plain-language customer contract summary",
+   "cadence": "monthly",
+   "level": "L4",
+   "setupKeys": [
+    "summaryPoints"
+   ],
+   "inputs": [
+    "Customer contract"
+   ],
+   "prompt": "Summarize the attached customer contract in plain language: what each side pays and when, term and renewal, termination rights, credits or discounts, and items to look into for revenue recognition.",
+   "setupQuestions": [
+    {
+     "key": "summaryPoints",
+     "q": "Which points should every contract summary cover beyond the standard ones (for example data protection, exclusivity, governing law)?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R49",
+   "version": 1,
+   "group": 5,
+   "groupName": "Accounting research and judgment",
+   "title": "Draft capitalization and accrual threshold policy tested against the ledger",
+   "cadence": "year end",
+   "level": "L3",
+   "setupKeys": [
+    "materialityBenchmarkOptions",
+    "policyTemplate"
+   ],
+   "inputs": [
+    "General ledger, profit and loss and balance sheet for the year",
+    "Firm policy template"
+   ],
+   "prompt": "Using this year's general ledger, draft a capitalization and accrual threshold policy: propose a materiality benchmark, test it against actual activity, and show how many items and dollars fall below the threshold.",
+   "setupQuestions": [
+    {
+     "key": "materialityBenchmarkOptions",
+     "q": "Which benchmarks should be considered (percent of revenue, of total assets, of pre-tax income) and at what percentages?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "policyTemplate",
+     "q": "Is there a firm policy template the draft should follow (name or location)?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R50",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Duplicate vendor records with recommended merges or mapping corrections",
+   "cadence": "monthly",
+   "level": "L3",
+   "setupKeys": [
+    "masterDataRules",
+    "mergeApprover"
+   ],
+   "inputs": [
+    "Vendor list with tax IDs and contact details",
+    "Bills, payments and AP aging by vendor"
+   ],
+   "prompt": "Find duplicate vendor records and recommend merges or mapping corrections, with all affected transactions and open balances shown before changes.",
+   "setupQuestions": [
+    {
+     "key": "masterDataRules",
+     "q": "What makes two vendor records the same vendor (same tax ID, same bank details, same legal name) and which record survives?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "mergeApprover",
+     "q": "Who approves vendor master changes?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R51",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Reclassifications for transactions coded against the mapping rules",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "codingRules"
+   ],
+   "inputs": [
+    "Transactions for the month with account and department",
+    "Categorization rules in Dime",
+    "Mapping workbook (vendor and keyword to account and department)"
+   ],
+   "prompt": "Review transactions coded to the wrong department or account based on approved mapping rules and propose reclassifications.",
+   "setupQuestions": [
+    {
+     "key": "codingRules",
+     "q": "Where are the approved coding rules (vendor to account, vendor to department, keyword rules) and who approved them?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R52",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Recurring accrual, prepaid amortization and depreciation entries for the close",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "recurringSchedule",
+    "reversalSettings"
+   ],
+   "inputs": [
+    "Recurring journal schedules",
+    "Prepaid amortization monthly summary",
+    "Fixed asset depreciation monthly summary",
+    "Journal entries already posted for the month"
+   ],
+   "prompt": "Prepare and propose all approved-policy recurring accrual, prepaid amortization and depreciation entries for the close period.",
+   "setupQuestions": [
+    {
+     "key": "recurringSchedule",
+     "q": "Which recurring entries are approved (name, accounts, amount or source schedule, posting day)?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "reversalSettings",
+     "q": "Which accruals reverse on the first day of the next month and which stay?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R53",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Unmatched customer receipts applied to open invoices",
+   "cadence": "each business day",
+   "level": "L4",
+   "setupKeys": [
+    "matchingTolerance",
+    "shortPayHandling"
+   ],
+   "inputs": [
+    "Bank and marketplace payout reports",
+    "Unmatched bank receipts and open invoices by customer",
+    "Remittance advices"
+   ],
+   "prompt": "Identify unmatched customer receipts and propose applying them to open invoices using remittance details.",
+   "setupQuestions": [
+    {
+     "key": "matchingTolerance",
+     "q": "Within what amount may a receipt differ from the invoice and still be applied as full payment?",
+     "type": "number",
+     "scope": "recipe"
+    },
+    {
+     "key": "shortPayHandling",
+     "q": "How are short payments handled (leave the balance open, write off under a limit, raise a credit memo)?",
+     "type": "text",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R54",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Intercompany differences from missing reciprocal postings with correcting entries",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "entityPairs",
+    "icAccounts",
+    "icFxPolicy"
+   ],
+   "inputs": [
+    "Intercompany balances matrix and reconciliation",
+    "Intercompany journal groups and the IC account ledgers per entity"
+   ],
+   "prompt": "Identify intercompany differences caused by missing reciprocal postings and propose correcting entries in the appropriate entities.",
+   "setupQuestions": [
+    {
+     "key": "entityPairs",
+     "q": "Which entity pairs transact with each other?",
+     "type": "text",
+     "scope": "*"
+    },
+    {
+     "key": "icAccounts",
+     "q": "Which ledger accounts are intercompany receivable and payable in each entity?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "icFxPolicy",
+     "q": "How are intercompany balances in different currencies translated and where do translation differences go?",
+     "type": "text",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R55",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Card transaction spreadsheet turned into journal entries",
+   "cadence": "monthly",
+   "level": "L4",
+   "setupKeys": [
+    "categoryToAccountMap",
+    "cardAccount",
+    "offsetAccount"
+   ],
+   "inputs": [
+    "Card transaction spreadsheet",
+    "Chart of accounts and the card account ledger"
+   ],
+   "prompt": "Turn the attached card transaction spreadsheet into journal entries using its category column for the expense account, and propose them for the card account.",
+   "setupQuestions": [
+    {
+     "key": "categoryToAccountMap",
+     "q": "Which chart-of-accounts name does each category in the spreadsheet map to?",
+     "type": "text",
+     "scope": "recipe"
+    },
+    {
+     "key": "cardAccount",
+     "q": "Which liability account is the card?",
+     "type": "accounts",
+     "scope": "recipe"
+    },
+    {
+     "key": "offsetAccount",
+     "q": "Which account takes a line whose category is not in the map until a person decides?",
+     "type": "accounts",
+     "scope": "recipe"
+    }
+   ]
+  },
+  {
+   "id": "R56",
+   "version": 1,
+   "group": 6,
+   "groupName": "Gated changes",
+   "title": "Bank payments coded to expense that match an open bill, recoded against the bill",
+   "cadence": "month end",
+   "level": "L4",
+   "setupKeys": [
+    "apAccounts",
+    "bankAccountsInScope"
+   ],
+   "inputs": [
+    "Open bills and the AP aging",
+    "Bank transactions coded to expense for the month"
+   ],
+   "prompt": "Find bank payments in the last closed month coded straight to expense that match an open bill in AP, and propose recoding them against the bill.",
+   "setupQuestions": [
+    {
+     "key": "apAccounts",
+     "q": "Which accounts are accounts payable?",
+     "type": "accounts",
+     "scope": "*"
+    },
+    {
+     "key": "bankAccountsInScope",
+     "q": "Which bank accounts are reconciled every month?",
+     "type": "accounts",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R57",
+   "version": 1,
+   "group": 7,
+   "groupName": "Recurring monitoring",
+   "title": "Daily integration exceptions digest",
+   "cadence": "each business day",
+   "level": "L4",
+   "setupKeys": [
+    "integrationsInScope",
+    "expectedSyncHours",
+    "recipients"
+   ],
+   "inputs": [
+    "Integration status and event logs"
+   ],
+   "prompt": "Every business day, check for failed accounting integrations, missing postings, duplicate transactions and stale bank feeds. Send only actionable exceptions.",
+   "setupQuestions": [
+    {
+     "key": "integrationsInScope",
+     "q": "Which integrations should be checked each day?",
+     "type": "list",
+     "scope": "recipe"
+    },
+    {
+     "key": "expectedSyncHours",
+     "q": "How many hours without a successful sync counts as stale?",
+     "type": "number",
+     "scope": "recipe",
+     "default": 24
+    },
+    {
+     "key": "recipients",
+     "q": "Who receives digests and alerts?",
+     "type": "list",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R58",
+   "version": 1,
+   "group": 7,
+   "groupName": "Recurring monitoring",
+   "title": "Weekly controller digest",
+   "cadence": "weekly",
+   "level": "L4",
+   "setupKeys": [
+    "recipients"
+   ],
+   "inputs": [
+    "Cash forecast workbook kept outside Dime"
+   ],
+   "prompt": "Each week, review overdue receivables, upcoming payments, cash availability and forecast changes. Highlight items requiring action.",
+   "setupQuestions": [
+    {
+     "key": "recipients",
+     "q": "Who receives digests and alerts?",
+     "type": "list",
+     "scope": "*"
+    }
+   ]
+  },
+  {
+   "id": "R59",
+   "version": 1,
+   "group": 7,
+   "groupName": "Recurring monitoring",
+   "title": "Recurring vendor charges against contract terms",
+   "cadence": "monthly",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Vendor contract register"
+   ],
+   "prompt": "Each month, compare recurring vendor charges with contract terms and prior periods. Flag rate changes, duplicate invoices and unexpected fees.",
+   "setupQuestions": []
+  },
+  {
+   "id": "R60",
+   "version": 1,
+   "group": 7,
+   "groupName": "Recurring monitoring",
+   "title": "Compliance deadlines and open requests tracker",
+   "cadence": "weekly",
+   "level": "L4",
+   "setupKeys": [],
+   "inputs": [
+    "Compliance calendar"
+   ],
+   "prompt": "Monitor upcoming compliance deadlines and open close or audit requests. Summarize overdue items and missing evidence each week.",
+   "setupQuestions": []
+  },
+  {
+   "id": "cand-customers-holding-a-prepayment-and-open",
+   "version": 0,
+   "group": 2,
+   "groupName": "Reconciliation and investigation",
+   "title": "Customers holding a prepayment and open AR, RD-2 Seed Co",
+   "cadence": "monthly",
+   "level": "L3",
+   "setupKeys": [],
+   "inputs": [],
+   "prompt": "Which customers held an unapplied prepayment or credit at 30 November 2026 and also had an open invoice on the same date? List each customer with both amounts and the invoice numbers. Entity: RD-2 Seed Co.",
+   "setupQuestions": [],
+   "candidate": true,
+   "learnedFrom": [
+    "REQ-13"
+   ],
+   "used": 1
+  }
+ ]
+}

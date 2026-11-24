@@ -3,6 +3,13 @@
 Parent documents: BRD-RD-1 and PRD-RD-1 (PDFs in `~/Downloads`). This is the
 engineering "how" for `labor_agents-orch`. Audience: engineers extending it.
 
+> **RD-2 (Request Library, L4 autonomy)** builds on this spec. Its tech spec lives in
+> the API repo at `ms-university/docs/request-desk/TECH_SPEC.md` because it spans the
+> desk, the API and the website; the desk-side pieces it adds are `src/recipes.js`,
+> `recipes/*.json`, `src/policy.js`, `src/reverse.js`, `src/digest.js` and
+> `tools/compute.js`. Parents: `~/Downloads/BRD-RD-2-request-desk-l4.pdf`,
+> `~/Downloads/PRD-RD-2-request-desk-l4.pdf`.
+
 ## 1. Approach summary
 
 A request is a folder; a status is a column in one lane; an agent is a folder of
@@ -129,3 +136,6 @@ Built in this order, each verified before the next: kernel (store, runner, guard
 - **`auth/me` is denied by policy but is the only profile route**, so the `businesses` verb of the HTTP tool calls it directly (not through the map) for subject resolution; agents cannot call `/auth/*` themselves.
 - **Handler parameter extraction is a heuristic.** The route catalogues' appendices are authoritative; code-scanned names fill gaps and may include neighbours' parameters when controllers put several handlers in one file.
 - **Tests must spawn the tools asynchronously**: a synchronous spawn blocks the event loop that serves the fake Dime in the same process.
+
+## 10. Status (RD-2 P1-a: the autonomy layer)
+The lane now carries one more status and one more decider. `awaiting_input` (between Scope and Gate 1 in `pipeline.lanes.request`, no agents) parks a request when the Planner or the worker returns `{status:'needs_input', inputs:[…]}` or when `plan.json` names `inputsNeeded`; `request.inputsNeeded[]` and `inputsStage` record what was asked and by whom, a message with `inputFor` (`O.provideInput`) clears one input and re-enters `inputsStage` when none is left, and `O.expireInputs()` (run by `lab worker` every sweep) resumes the stage after `inputs.timeoutDays` (5; a recipe's `inputTimeoutDays` overrides) with the inputs marked `missing`. The entity policy (`src/policy.js`, `config/policy/<businessId>.json` over `config/policy.json`) is the second decider: `decide()` gives every write kind a tier (alwaysHuman → actor permission ceiling → entity rule against facts/amount → recipe `tierRules` → desk default), `isFast()` admits a writes request when every planned write (`request.writeTiers`, set at intake from the recipe and at scope from `plan.writes`) is tier A with `autoApply`, and `transition('verify/verifier')` on pass goes to `apply` first when any pending proposal the worker staged as A decides to A (`extras.tierA`), writing `request.policyApply`; `applyTierA()` then approves those proposals as `policy@v<n>` (`PR.decideByPolicy`), `assertPreconditions` admits `apply` on that record without Gate 2, and the Applier posts only policy-approved items in that mode, re-deciding each one at apply time (E-01: demoted or writes-disabled items go back to `proposed` with `policyDeferred`). The second verify pass finds no tier A and goes to Gate 2 or Deliver. Blocked reasons carry a capability gap (`read|compute|change|prove|input`, `request.blocked.gap`, `O.gapCounts()`); `request.touches` counts human decisions (never policy's). `src/reverse.js` undoes an applied proposal within 30 days through inverse product routes (re-categorise with `previous`, remove-payment, reversing journal, deactivate), marks it `reversed`, receipts it and writes `artifacts/knowledge-notes.jsonl`; `src/digest.js` assembles `runs/digest/<businessId>/<date>.json` (`LAB_DIGEST_DIR` overrides; applied, decisions, awaitingInput, paused, reviewSuggested, totals), `levelOf()` and the eleven `metricsOf()` keys the API worker reports with each state push and each day's digest. CLI: `lab input`, `lab policy show|set|earned`, `lab digest`, `lab reverse`.

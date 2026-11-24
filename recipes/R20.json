@@ -1,0 +1,145 @@
+{
+  "id": "R20",
+  "version": 1,
+  "group": 2,
+  "title": "Prepaid expense schedule tied to the prepaid GL balance",
+  "prompt": "Tie the prepaid expense schedule to the prepaid GL balance at the end of the last closed month and explain any variance item by item.",
+  "keywords": [
+    "prepaid",
+    "prepaid schedule",
+    "amortization",
+    "tie-out",
+    "variance",
+    "reclass",
+    "balance sheet support",
+    "month end"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "prepaidAccount",
+      "q": "Which ledger account (or accounts) holds prepaid expenses?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Prepaid expense schedule for the period",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false,
+      "acceptedTypes": [
+        "xlsx"
+      ]
+    }
+  ],
+  "steps": [
+    "read the prepaid schedule: Dime's prepaid module first, then the standing workbook, then a document request",
+    "pull the prepaid account ledger for the period and its ending balance",
+    "run rollforward over the schedule (opening, additions, amortization, closing) and write it to the Detail sheet",
+    "compare the schedule closing to the ledger balance; match each ledger posting to a schedule line and list items on one side only, amount differences and amortization not posted",
+    "propose a reclass only where both the source and the target account are stated by the schedule and the ledger row; otherwise list the item for a person"
+  ],
+  "compute": [
+    "rollforward"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The schedule closing balance on the Tie-out equals the prepaid account's ending balance in Dime's general ledger at the period end",
+      "evaluator": "ties_to_gl_account",
+      "args": {
+        "account": "{{setup.prepaidAccount}}",
+        "startDate": "{{period.start}}",
+        "endDate": "{{period.end}}",
+        "name": "prepaid-tie-out.xlsx"
+      },
+      "expect": {
+        "figure": "endingBalance"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The Detail sheet rolls forward per prepaid item: opening plus additions less amortization equals closing on every row and the totals row equals the column sums",
+      "evaluator": "rollforward_ties",
+      "args": {
+        "name": "prepaid-tie-out.xlsx",
+        "sheet": "Detail"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the schedule line and the ledger transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "prepaid-tie-out.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "prepaid-tie-out.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "prepaid-tie-out.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Every proposed reclass balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-6",
+      "text": "Each variance is explained item by item with the schedule and ledger figures; nothing is explained as a net difference"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "journal_entry",
+      "route": "journal entry reclass",
+      "tierRules": [
+        {
+          "when": "a reclass where both the source and the target account are stated by the schedule line and the ledger row",
+          "tier": "A"
+        },
+        {
+          "when": "any other reclass",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "prepaid-tie-out.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r20-seed-co"
+  ]
+}

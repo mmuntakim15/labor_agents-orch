@@ -88,6 +88,17 @@ function scanCheckout(root) {
         const handler = parts[parts.length - 1] || '';
         list.push({ method: r[1].toUpperCase(), path: r[2], middleware: parts.slice(0, -1).map((s) => s.replace(/\(.*$/s, '')).filter((s) => /^[A-Za-z_][\w.]*$/.test(s)), handler: handler.replace(/^[A-Za-z0-9_]+\./, '').replace(/[^\w]/g, '') });
       }
+      // chained declarations: router.route('/x').post(mw, handler).put(handler); (the bill/invoice apply-payment routes are written this way)
+      const cr = /router\s*\.route\(\s*['"`]([^'"`]+)['"`]\s*\)((?:\s*\.(?:get|post|put|patch|delete)\(\s*[\s\S]*?\))+)\s*;/g;
+      let c;
+      while ((c = cr.exec(src))) {
+        const vr = /\.(get|post|put|patch|delete)\(\s*([\s\S]*?)\)(?=\s*(?:\.(?:get|post|put|patch|delete)\(|$))/g; let v;
+        while ((v = vr.exec(c[2]))) {
+          const parts = v[2].split(',').map((s) => s.trim()).filter(Boolean);
+          const handler = parts[parts.length - 1] || '';
+          list.push({ method: v[1].toUpperCase(), path: c[1], middleware: parts.slice(0, -1).map((s) => s.replace(/\(.*$/s, '')).filter((s) => /^[A-Za-z_][\w.]*$/.test(s)), handler: handler.replace(/^[A-Za-z0-9_]+\./, '').replace(/[^\w]/g, ''), chained: true });
+        }
+      }
       if (list.length) routesByFile[rel] = list;
       const ir = /require\(\s*['"](\.[^'"]+)['"]\s*\)/g; let im; const ctrls = [];
       while ((im = ir.exec(src))) { const t = resolveReq(rel, im[1]); if (t && t.startsWith('controllers/')) ctrls.push(t); }

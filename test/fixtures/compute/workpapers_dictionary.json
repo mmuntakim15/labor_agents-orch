@@ -1,0 +1,10 @@
+{
+  "bankRecon": { "name": "Bank Reconciliation", "list": [
+    { "id": "br1", "name": "Operating Checking Oct 2026", "startDate": "2026-10-01T00:00:00.000Z", "endDate": "2026-10-31T00:00:00.000Z", "status": "completed" } ] },
+  "fixedAssets": { "name": "Fixed Assets", "description": "List of fixed assets and their details", "list": [
+    { "id": "fa1", "accountName": "Equipment", "endDate": "2026-10-31", "items": [{ "name": "Forklift" }] } ] },
+  "depreciation": { "name": "Depreciation", "description": "Details of depreciation for fixed assets", "list": [] },
+  "prepaids": { "name": "Prepaids", "description": "List of prepaid expenses and their details", "list": [
+    { "id": "pp1", "accountName": "Prepaid Insurance", "status": "draft" } ] },
+  "accruals": { "name": "Accruals", "description": "List of accrued expenses and their details", "list": [] }
+}

@@ -1,0 +1,138 @@
+{
+  "id": "R10",
+  "version": 1,
+  "group": 2,
+  "title": "Bank statement to general ledger reconciliation for the last closed month",
+  "prompt": "Reconcile each bank statement to the general ledger for the last closed month. Match transactions and explain every outstanding difference.",
+  "keywords": [
+    "bank reconciliation",
+    "bank rec",
+    "bank statement",
+    "outstanding checks",
+    "deposits in transit",
+    "book balance",
+    "statement balance",
+    "Plaid",
+    "unexplained difference"
+  ],
+  "kind": "report",
+  "worker": "preparer",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "bankAccountsInScope",
+      "q": "Which bank accounts are reconciled every month?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "differenceThreshold",
+      "q": "Below what amount is an unexplained difference recorded as a note rather than an exception?",
+      "type": "number",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Bank statements, one per account in scope",
+      "periodRule": "last_closed_month",
+      "source": "connection",
+      "connection": "Plaid",
+      "acceptedTypes": [
+        "pdf",
+        "csv"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "resolve the bank accounts in scope and the period dates; read the period-lock state and any reconciliation Dime already holds for the month",
+    "for each account get the statement: the Plaid connection first, then statements uploaded to Dime, then a document request per account",
+    "pull the single-account general ledger for each bank account for the period",
+    "match statement lines to ledger rows one to one by date and amount, then by reference; a statement line never matches two ledger rows",
+    "list every unmatched item on each side: deposits in transit, outstanding checks, bank-only items (fees, interest, returned items), book-only items; age each one",
+    "tie each account: statement ending balance plus deposits in transit less outstanding checks equals the ledger ending balance; a residual above the threshold is an exception, below it a note, never a plug",
+    "propose the bank reconciliation record per account with the matched items and the outstanding list (tier A); never finalize it",
+    "write the workbook with one Tie-out block per account"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "For each bank account in scope the reconciled book balance on the Tie-out equals the ending balance of that account in Dime's general ledger at the period end",
+      "evaluator": "ties_to_gl_account",
+      "args": {
+        "account": "{{setup.bankAccountsInScope}}",
+        "startDate": "{{period.start}}",
+        "endDate": "{{period.end}}",
+        "name": "bank-reconciliations.xlsx"
+      },
+      "expect": {
+        "figure": "endingBalance"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the statement line or the ledger transaction id and the bank account",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "bank-reconciliations.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "bank-reconciliations.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "bank-reconciliations.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every outstanding difference is explained one by one as a deposit in transit, an outstanding check, a bank-only item or a timing item; nothing is netted or plugged, and the reconciliation is proposed for a person to finalize, never finalized by the desk"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "bank_reconciliation",
+      "route": "bank reconciliation create",
+      "tierRules": [
+        {
+          "when": "create the reconciliation record for one account and period with the matched items and the outstanding items listed",
+          "tier": "A"
+        },
+        {
+          "when": "finalize or lock a reconciliation (never proposed; a person finalizes in Dime)",
+          "tier": "human"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "bank-reconciliations.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 12,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r10-seed-co"
+  ]
+}

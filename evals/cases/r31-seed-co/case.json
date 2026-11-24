@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "First-pass general ledger review against the prior month",
+    "body": "Do a first pass review of the last closed month's general ledger compared with the prior month. Flag unusual coding, possible duplicates, balances with the wrong sign, entries with no description and anything that looks out of place for this business. Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "report",
+      "worker": "analyst",
+      "writes": false,
+      "recipeId": "R31"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R31 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"GL hygiene\",\"exceptions\":[{\"kind\":\"blank_description\",\"journalId\":\"RD2-JE-20260918\",\"date\":\"2026-09-18\",\"amount\":\"312.40\"},{\"kind\":\"round_number\",\"journalId\":\"RD2-RECLASS-20261015\",\"date\":\"2026-10-15\",\"amount\":\"10000.00\",\"from\":\"6300 Travel\",\"to\":\"6200 Meals & Entertainment\"}]}"
+  }
+}

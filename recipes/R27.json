@@ -1,0 +1,133 @@
+{
+  "id": "R27",
+  "version": 1,
+  "group": 3,
+  "title": "Month-end payroll accrual for days worked but not yet paid",
+  "prompt": "Calculate the month-end payroll accrual for days worked but not yet paid, and prepare the reversing entry.",
+  "keywords": [
+    "payroll accrual",
+    "accrued wages",
+    "days worked",
+    "unpaid days",
+    "reversing entry",
+    "pay calendar",
+    "payroll register",
+    "month end"
+  ],
+  "kind": "report",
+  "worker": "bookkeeper",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "payCalendar",
+      "q": "What is the pay calendar (frequency, pay dates, the lag between period end and pay date)?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Payroll calendar for the year",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Payroll register for the last pay run before period end",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "from the pay calendar find the last pay period paid before period end and count the working days from its end to the period end",
+    "take gross wages, employer taxes and benefits from the register totals; daily cost equals the register total divided by the working days in its pay period",
+    "accrual equals daily cost times the unpaid working days, by department where the register totals allow; show the arithmetic",
+    "read the period-lock state; propose the accrual dated the period end and the reversal dated the first day of the next period (tier B), the reversal summary naming the accrual it reverses",
+    "write the workbook with totals only"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The accrual and its reversal balance to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-2",
+      "text": "The accrual is proposed once and no existing payroll accrual for the period is duplicated",
+      "evaluator": "no_double_count",
+      "args": {}
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the register total line and the calendar date it rests on",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "payroll-accrual.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "payroll-accrual.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "payroll-accrual.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "The unpaid days come from the calendar, the daily cost from the register totals, and both are shown; the deliverable carries totals only, with no employee name or pay"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "accrual",
+      "route": "journal entry accrual and reversal",
+      "tierRules": [
+        {
+          "when": "the accrual dated the period end and its reversal dated the first day of the next period",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "payroll-accrual.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-pending",
+  "restrictedData": true,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r27-seed-co"
+  ]
+}

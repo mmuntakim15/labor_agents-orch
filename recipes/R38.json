@@ -1,0 +1,164 @@
+{
+  "id": "R38",
+  "version": 1,
+  "group": 4,
+  "title": "13-week cash forecast update",
+  "prompt": "Update the 13-week cash forecast using current bank balances, open invoices, bills, payroll and recurring contractual commitments.",
+  "keywords": [
+    "13-week",
+    "cash forecast",
+    "cash flow forecast",
+    "liquidity",
+    "runway",
+    "bank balances",
+    "open invoices",
+    "bills",
+    "payroll",
+    "commitments",
+    "minimum cash"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "last_week",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "collectionLagDays",
+      "q": "How many days after the due date do customers pay on average?",
+      "type": "number",
+      "scope": "recipe"
+    },
+    {
+      "key": "recurringCommitments",
+      "q": "Which recurring contractual payments are not in AP yet (rent, debt service, insurance) with amount and day of month?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "minimumCash",
+      "q": "Below what cash balance should a week be flagged?",
+      "type": "number",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Bank balances, AR aging, AP aging and the cash forecast",
+      "periodRule": "last_week",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Existing 13-week cash forecast workbook",
+      "periodRule": "last_week",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": false,
+      "maxAgeDays": 14
+    },
+    {
+      "name": "Payroll schedule",
+      "periodRule": "last_week",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx",
+        "csv"
+      ],
+      "optional": false,
+      "maxAgeDays": 90
+    }
+  ],
+  "steps": [
+    "pull current bank balances, open invoices with due dates, open bills with due dates and Dime's cash forecast",
+    "read the standing forecast workbook and the payroll schedule",
+    "run forecast_roll: roll the forecast forward one week, place receipts at due date plus collectionLagDays, bills at due date, payroll and recurringCommitments on their dates",
+    "run xlsx_update_in_place to write the new week columns into the standing workbook without touching its formulas; flag weeks whose closing cash is below minimumCash",
+    "write the exceptions workbook with the changes against last week's forecast"
+  ],
+  "compute": [
+    "forecast_roll",
+    "xlsx_update_in_place"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The updated forecast workbook exists",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "pattern": "^cash-forecast-13w.*\\.xlsx$"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Opening cash in week 1 equals the current bank balances; the workbook carries thirteen week columns",
+      "evaluator": "figure_in_range",
+      "args": {
+        "file": "forecast-roll.json",
+        "figure": "weeks"
+      },
+      "expect": {
+        "equals": 13
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (a week below minimum cash, a change from last week) cites the week and the invoice, bill or commitment id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "cash-forecast-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "cash-forecast-exceptions.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "cash-forecast-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Assumptions (collection lag, commitments, payroll dates) are stated on the forecast; the standing workbook keeps its formulas"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "cash-forecast-exceptions.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    },
+    {
+      "name": "cash-forecast-13w.xlsx",
+      "sheets": [
+        "Forecast",
+        "Assumptions",
+        "Receipts",
+        "Payments"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r38-seed-co"
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "id": "R33",
+  "version": 1,
+  "group": 3,
+  "title": "Deferred revenue rollforward by customer tied to the GL",
+  "prompt": "Roll forward deferred revenue by customer for the last closed month (opening, billed, recognized, closing) and tie the total to the GL.",
+  "keywords": [
+    "deferred revenue",
+    "rollforward",
+    "unearned",
+    "contract liability",
+    "revenue recognition",
+    "waterfall",
+    "by customer",
+    "prepayment"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "deferredRevenueAccounts",
+      "q": "Which GL accounts hold deferred revenue?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Revenue recognition waterfall and contract balances",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Invoices and AR aging for the month",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "General ledger for the deferred revenue accounts",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the revenue recognition waterfall and contract balances for the month, and the invoices billed in the month by customer",
+    "run rollforward by customer: opening, billed (additions), recognized (reductions), closing",
+    "pull the general ledger for deferredRevenueAccounts and compare the closing total with the ending balance",
+    "flag customers whose closing deferred balance is a prepayment while they also carry open AR, and customers in the GL with no contract",
+    "write the workbook with the rollforward on the Detail sheet and a totals row"
+  ],
+  "compute": [
+    "rollforward"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every customer row rolls forward (opening + billed − recognized = closing) and the totals row equals the column sums",
+      "evaluator": "rollforward_ties",
+      "args": {
+        "name": "deferred-revenue-rollforward.xlsx",
+        "sheet": "Detail"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The closing total equals the deferred revenue accounts' ending balance in Dime's general ledger for the period",
+      "evaluator": "ties_to_gl_account",
+      "args": {
+        "account": "{{setup.deferredRevenueAccounts}}",
+        "startDate": "{{period.start}}",
+        "endDate": "{{period.end}}",
+        "name": "deferred-revenue-rollforward.xlsx"
+      },
+      "expect": {
+        "figure": "endingBalance"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the customer id and the contract or invoice id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "deferred-revenue-rollforward.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "deferred-revenue-rollforward.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "deferred-revenue-rollforward.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Customers holding a prepayment while they also have open AR are flagged with both figures; a difference between the rollforward and the GL is listed, never plugged"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "deferred-revenue-rollforward.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r33-seed-co"
+  ]
+}

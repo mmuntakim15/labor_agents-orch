@@ -1,0 +1,180 @@
+{
+  "id": "R35",
+  "version": 1,
+  "group": 4,
+  "title": "Monthly consolidated management reporting with commentary",
+  "prompt": "Prepare monthly consolidated management reporting with income statement, balance sheet, cash flow and explanations of material changes.",
+  "keywords": [
+    "consolidated",
+    "management reporting",
+    "board pack",
+    "income statement",
+    "balance sheet",
+    "cash flow",
+    "commentary",
+    "material changes",
+    "KPIs",
+    "multi-entity"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "size": "L",
+  "childrenBy": "entity",
+  "setup": [
+    {
+      "key": "reportingStructure",
+      "q": "Which entities roll up to the parent, in what currency, and what eliminations apply?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "commentaryThreshold",
+      "q": "Above what change (in reporting currency) does a line need an explanation?",
+      "type": "number",
+      "scope": "recipe"
+    },
+    {
+      "key": "kpiDefinitions",
+      "q": "Which KPIs appear on the front page and how is each defined?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Consolidation runs for the period",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Report packages and realtime statements per entity",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Flux analysis for the period against the prior month",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "the parent runs one child per entity in reportingStructure; each child pulls its income statement, balance sheet and cash flow for the month and the prior month",
+    "pull the consolidation run for the period and the elimination entries; tie the consolidated statements to the sum of the entities less eliminations",
+    "run the flux against the prior month; every line whose change exceeds commentaryThreshold gets an explanation from the transaction detail",
+    "compute the KPIs exactly as kpiDefinitions states and show the arithmetic",
+    "write the report package and the workbook; a report package version in Dime is proposed only when the requester asked for one"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Consolidated total assets equal Dime's balance sheet for the parent as of the period end",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "balance_sheet",
+        "currentStart": "{{period.start}}",
+        "currentEnd": "{{period.end}}",
+        "name": "consolidated-management-report.xlsx"
+      },
+      "expect": {
+        "figure": "totalAssets"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Consolidated net income equals Dime's profit and loss for the parent for the period",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "profit_and_loss",
+        "currentStart": "{{period.start}}",
+        "currentEnd": "{{period.end}}",
+        "name": "consolidated-management-report.xlsx"
+      },
+      "expect": {
+        "figure": "netIncome"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (a material change or an elimination that does not tie) cites the entity, the account id and the flux line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "consolidated-management-report.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "consolidated-management-report.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "consolidated-management-report.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Every entity in the structure appears in the workbook",
+      "evaluator": "all_entities_covered",
+      "args": {
+        "file": "consolidated-management-report.xlsx"
+      }
+    },
+    {
+      "id": "D-6",
+      "text": "Every change above the threshold has an explanation grounded in transaction detail; KPIs show their arithmetic; eliminations are listed, never netted into a line"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "report_package",
+      "route": "POST /api/v1/accountant/reportPackages/:id/new-version",
+      "optional": true,
+      "tierRules": [
+        {
+          "when": "the requester asked for a new version of an existing report package and the statements tie",
+          "tier": "A"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "consolidated-management-report.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    },
+    {
+      "name": "management-report.pdf",
+      "sheets": [
+        "KPIs",
+        "Income statement",
+        "Balance sheet",
+        "Cash flow",
+        "Commentary"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 20,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r35-seed-co"
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "id": "R01",
+  "version": 1,
+  "group": 1,
+  "title": "Balance sheet accounts without a reconciliation or supporting schedule",
+  "prompt": "Which balance sheet accounts have balances but no reconciliation or supporting schedule for the last closed month?",
+  "keywords": [
+    "unreconciled",
+    "unsupported",
+    "missing rec",
+    "workpaper",
+    "schedule coverage",
+    "balance sheet review"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "accountsNeedingRec",
+      "q": "Which balance sheet accounts need a reconciliation or schedule every month?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "externalRecLocation",
+      "q": "Where are reconciliations and schedules kept when they are not in Dime (folder, workbook, system)?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Reconciliation workpapers kept outside Dime",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "pdf"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the as-of trial balance for the last closed month",
+    "list the bank reconciliations and workpaper schedules Dime holds for that month",
+    "run coverage_crosswalk: every balance sheet account with a non-zero balance against the support found",
+    "separate \"no support found\" from \"support exists but is not accessible to the desk\"",
+    "write the workbook"
+  ],
+  "compute": [
+    "coverage_crosswalk"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The Detail sheet lists every balance sheet account with a non-zero balance, and its total ties to Dime's trial balance as of the period end",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "trial_balance",
+        "asOf": "{{period.end}}",
+        "name": "unsupported-balances.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the account id and the last place support was looked for",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "unsupported-balances.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "unsupported-balances.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "unsupported-balances.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Missing support is told apart from support the desk could not reach; each row says which"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "unsupported-balances.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r01-seed-co"
+  ]
+}

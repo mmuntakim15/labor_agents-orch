@@ -1,0 +1,147 @@
+{
+  "id": "R44",
+  "version": 1,
+  "group": 5,
+  "title": "Service credits and concessions: revenue and billing impact",
+  "prompt": "Review contractual service credits and concessions to determine their potential impact on revenue recognition and billing.",
+  "keywords": [
+    "service credits",
+    "concessions",
+    "SLA",
+    "price concession",
+    "variable consideration",
+    "revenue recognition",
+    "billing",
+    "credit memo",
+    "research"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": null,
+    "periodRule": "current_month",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Invoices, credit memos and the revenue recognition schedule for the customer",
+      "periodRule": "current_month",
+      "source": "dime",
+      "optional": true
+    },
+    {
+      "name": "Customer contract with the service level and credit terms",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "docx"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Correspondence granting or discussing the credits",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "docx",
+        "eml",
+        "txt"
+      ],
+      "optional": true
+    },
+    {
+      "name": "Revised billing schedule",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "pdf"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "read the contract's service level and credit terms, the correspondence and the revised billing schedule; list each credit or concession with its date, amount and basis",
+    "classify each as contractual (a service credit under the SLA), a price concession or a contract modification, citing the paragraphs relied on and marking each \"verify\"",
+    "set out the effect on variable consideration, the transaction price and the recognition pattern under each alternative; list the missing facts",
+    "compare with the invoices and credit memos already issued in Dime",
+    "write the memo and the workbook of credits, billed amounts and differences"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The memo cites the paragraphs it relies on, marks every citation \"verify\", draws no conclusion where facts are missing, and leaves the judgement with the accountant; it uses none of the words definitely, certainly or guaranteed",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "service-credits-memo.pdf",
+        "words": [
+          "definitely",
+          "certainly",
+          "guaranteed"
+        ]
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The memo exists as a pdf",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "name": "service-credits-memo.pdf"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (a credit not yet billed, a concession without documentation) cites the contract clause, the correspondence item or the invoice id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "service-credits.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "service-credits.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "service-credits.xlsx"
+      }
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "service-credits-memo.pdf",
+      "sheets": [
+        "Facts",
+        "Guidance",
+        "Alternatives",
+        "Missing facts",
+        "Preliminary conclusion"
+      ]
+    },
+    {
+      "name": "service-credits.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-policy",
+  "restrictedData": false,
+  "budgetUsd": 15,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r44-seed-co"
+  ]
+}

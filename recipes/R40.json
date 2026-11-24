@@ -1,0 +1,127 @@
+{
+  "id": "R40",
+  "version": 1,
+  "group": 4,
+  "title": "Proposed payment run for the next seven days",
+  "prompt": "Prepare a proposed payment run for the next seven days, considering due dates, available cash, approvals and duplicate payment risk.",
+  "keywords": [
+    "payment run",
+    "AP",
+    "pay cycle",
+    "due dates",
+    "available cash",
+    "approvals",
+    "duplicate payment",
+    "vendor priority",
+    "disbursement"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "last_week",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "paymentRules",
+      "q": "What are the payment rules (pay on due date, take discounts, hold unapproved bills, pay by ACH unless the vendor requires check)?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "minimumCash",
+      "q": "What cash balance must remain after the run?",
+      "type": "number",
+      "scope": "recipe"
+    },
+    {
+      "key": "vendorPriority",
+      "q": "Which vendors are paid first when cash is short (payroll providers, landlords, critical suppliers)?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Open bills with approval status and due dates",
+      "periodRule": "last_week",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Bank balances and payment history",
+      "periodRule": "last_week",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull open bills with due dates and approval status, bank balances and the last 90 days of payments",
+    "select the bills due within seven days under paymentRules; apply vendorPriority when the total exceeds cash less minimumCash",
+    "run duplicate_pairs over the selected bills and the recent payments: same vendor and amount, close dates",
+    "list separately every vendor whose bank details changed since their last payment",
+    "write the proposed run and the exceptions; no payment is initiated and no bill is changed"
+  ],
+  "compute": [
+    "duplicate_pairs"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row (a possible duplicate, an unapproved bill, a beneficiary change) cites the bill id and the matching payment id where one exists",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "proposed-payment-run.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "proposed-payment-run.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "proposed-payment-run.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The proposed run total equals open bills due within seven days on Dime's AP aging less the holds listed",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "ap_aging",
+        "asOf": "{{period.end}}",
+        "name": "proposed-payment-run.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "This is a recommendation only: no payment is initiated, no bill is approved or changed; vendors whose bank details changed are listed separately for a person to confirm by phone; cash after the run is shown against the minimum"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "proposed-payment-run.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-policy",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r40-seed-co"
+  ]
+}

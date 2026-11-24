@@ -1,0 +1,98 @@
+{
+  "id": "R42",
+  "version": 1,
+  "group": 4,
+  "title": "Vendors paid by ACH, check or wire for 1099 review",
+  "prompt": "List vendors paid this year by ACH, check or wire (not card), with totals, for 1099 review by the tax preparer, and flag vendors with no tax ID on file.",
+  "keywords": [
+    "1099",
+    "tax ID",
+    "TIN",
+    "W-9",
+    "contractors",
+    "year end",
+    "tax preparer",
+    "reporting threshold"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 5 1 *",
+    "periodRule": "prior_year",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "reportingThreshold",
+      "q": "What is the 1099 reporting threshold for the year (confirmed by the tax preparer)?",
+      "type": "number",
+      "scope": "*",
+      "default": 600
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Vendor W-9s not stored in Dime",
+      "periodRule": "prior_year",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the year's bill payments and bank outflows by vendor with payment method",
+    "exclude card payments",
+    "total by vendor and apply the reporting threshold",
+    "flag vendors with no tax ID on the vendor record",
+    "write the list for the tax preparer"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the vendor id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "1099-vendor-review.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "1099-vendor-review.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "1099-vendor-review.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Card payments are excluded; the threshold used is stated; filing decisions are left to the tax preparer"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "1099-vendor-review.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r42-seed-co"
+  ]
+}

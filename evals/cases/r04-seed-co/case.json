@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Vendors coded inconsistently across accounts or departments",
+    "body": "Identify vendors whose expenses are coded inconsistently across accounts or departments over the last quarter. Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "report",
+      "worker": "analyst",
+      "writes": false,
+      "recipeId": "R04"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R04 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"Overdue receivables (assumed recipe title)\",\"assumed\":true,\"exceptions\":[{\"invoice\":\"INV-2031\",\"customer\":\"Northgate Cleaning Services Inc\",\"dueDate\":\"2026-10-31\",\"amount\":\"3200.00\"}]}"
+  }
+}

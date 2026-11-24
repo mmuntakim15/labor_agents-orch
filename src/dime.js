@@ -68,6 +68,31 @@ async function login(id, { force = false } = {}) {
   return s;
 }
 
+/** The delegated token on a request, if it is still valid (a minute of slack before expiry). */
+function delegatedFor(request) {
+  const a = request && request.auth;
+  if (!a || !a.token) return null;
+  if (a.expiresAt && Date.parse(a.expiresAt) - Date.now() < 60 * 1000) return null;
+  return a;
+}
+
+/** Ask the API for a fresh token AS the requester (machine-authenticated); saves it on the request. Null when the request is not a Dime one or the API refuses. */
+async function refreshDelegated(request) {
+  if (!request || !request.api || !request.api.id) return null;
+  let cfg = {};
+  try { for (const f of ['dashboard.json', 'dashboard.local.json']) { try { Object.assign(cfg, JSON.parse(fs.readFileSync(path.join(ROOT, 'config', f), 'utf8'))); } catch { /* optional */ } } } catch { cfg = {}; }
+  const token = process.env.LAB_API_TOKEN || (cfg.api && cfg.api.token) || '';
+  const base = process.env.LAB_API_URL || (cfg.api && cfg.api.baseUrl) || backend(request.backend).apiBaseUrl;
+  if (!token || !base) return null;
+  try {
+    const r = await fetchJson(`${String(base).replace(/\/+$/, '')}/api/v1/internal/request-desk/requests/${request.api.id}/token`, { method: 'POST', headers: { 'x-request-desk-token': token, 'content-type': 'application/json' }, body: '{}', timeoutMs: 20000 });
+    if (!r.ok || !r.json || !r.json.token) return null;
+    request.auth = { token: r.json.token, expiresAt: r.json.expiresAt || null, apiId: request.api.id, refreshedAt: new Date().toISOString() };
+    try { require('./request').saveRequest(request); } catch { /* a detached copy; the caller keeps it */ }
+    return request.auth;
+  } catch { return null; }
+}
+
 function argsHash(query, body) {
   return crypto.createHash('sha1').update(JSON.stringify({ q: query || null, b: body || null })).digest('hex').slice(0, 12);
 }
@@ -76,10 +101,14 @@ function argsHash(query, body) {
  * One call to the product. Returns {status, ok, json, text, buf, bytes, ms, argsHash}.
  * A 401 re-signs in once. 429 backs off. Connection refusals retry a few times.
  */
-async function call({ backend: id, method = 'GET', path: reqPath, query = null, body = null, headers = {}, timeoutMs = 120000, _attempt = 0, _relogin = true } = {}) {
+async function call({ backend: id, method = 'GET', path: reqPath, query = null, body = null, headers = {}, timeoutMs = 120000, request = null, _attempt = 0, _relogin = true } = {}) {
   const b = backend(id);
   if (!reqPath || !reqPath.startsWith('/')) throw new Error('path must start with /');
-  const s = await login(b.id);
+  // RD-2 delegated identity: a request sent from the Dime app carries a token AS its requester (handed to the
+  // desk when it claimed the request). It is used for every call on that request; the service login is only the
+  // fallback for requests that carry none (started from the CLI or by a schedule).
+  const delegated = delegatedFor(request);
+  const s = delegated ? { token: delegated.token, delegated: true } : await login(b.id);
   const url = new URL(reqPath, b.apiBaseUrl);
   if (query && typeof query === 'object') for (const [k, v] of Object.entries(query)) if (v != null) url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
   const started = Date.now();
@@ -93,9 +122,12 @@ async function call({ backend: id, method = 'GET', path: reqPath, query = null, 
     const err = new Error(`The Dime API at ${b.apiBaseUrl} is not reachable (${(e.cause && e.cause.code) || e.message}). Start the backend (lab stack up) or check config/backends.json.`);
     err.status = 0; throw err;
   }
-  if (r.status === 401 && _relogin) { forgetSession(b.id); await login(b.id, { force: true }); return call({ backend: id, method, path: reqPath, query, body, headers, timeoutMs, _attempt, _relogin: false }); }
+  if (r.status === 401 && _relogin) {
+    if (delegated) { const fresh = await refreshDelegated(request); if (fresh) return call({ backend: id, method, path: reqPath, query, body, headers, timeoutMs, request, _attempt, _relogin: false }); }
+    forgetSession(b.id); await login(b.id, { force: true }); return call({ backend: id, method, path: reqPath, query, body, headers, timeoutMs, request: null, _attempt, _relogin: false });
+  }
   if (r.status === 429 && _attempt < 5) { const ra = Number(r.headers.get('retry-after')); const wait = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, 30000) : Math.min(1000 * 2 ** _attempt, 15000); await new Promise((x) => setTimeout(x, wait)); return call({ backend: id, method, path: reqPath, query, body, headers, timeoutMs, _attempt: _attempt + 1, _relogin }); }
-  return { status: r.status, ok: r.ok, json: r.json, text: r.text, buf: r.buf, type: r.type, bytes: r.buf.length, ms: Date.now() - started, argsHash: argsHash(query, body), url: url.pathname + url.search };
+  return { auth: delegated ? 'delegated' : 'service', status: r.status, ok: r.ok, json: r.json, text: r.text, buf: r.buf, type: r.type, bytes: r.buf.length, ms: Date.now() - started, argsHash: argsHash(query, body), url: url.pathname + url.search };
 }
 
 /** Plain sentence for a failed product call, from the product's own words when it sent any. */
@@ -117,4 +149,4 @@ async function health(id) {
   try { const r = await fetchJson(`${b.apiBaseUrl}${(b.boot && b.boot.health) || '/healthz'}`, { timeoutMs: 5000 }); return { ok: r.status < 500, status: r.status }; } catch (e) { return { ok: false, error: (e.cause && e.cause.code) || e.message }; }
 }
 
-module.exports = { loadBackends, backend, checkoutPath, login, call, humanize, health, argsHash, sessionFile, forgetSession, fetchJson };
+module.exports = { loadBackends, backend, checkoutPath, login, call, humanize, health, argsHash, sessionFile, forgetSession, fetchJson, delegatedFor, refreshDelegated };

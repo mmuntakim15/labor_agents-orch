@@ -1,0 +1,90 @@
+{
+  "id": "R29",
+  "version": 1,
+  "group": 3,
+  "title": "Monthly close status report",
+  "prompt": "Prepare a monthly close status report using the close checklist, posted entries and reconciliation evidence. Identify outstanding dependencies.",
+  "keywords": [
+    "close checklist",
+    "close status",
+    "close readiness",
+    "blockers",
+    "owners",
+    "dependencies",
+    "month-end close"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "closing_month",
+    "event": null,
+    "cadence": "weekly during close"
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Close checklist kept outside Dime",
+      "periodRule": "closing_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "read the close checklist for the month being closed with owners and due dates",
+    "for each task, look for its evidence in Dime (posted entries, reconciliations, sign-offs)",
+    "list tasks without evidence as outstanding with their dependency",
+    "write the status workbook"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the checklist task and the evidence looked for",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "close-status.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "close-status.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "close-status.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "No task is marked complete without evidence; missing access is stated as such"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "close-status.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r29-seed-co"
+  ]
+}

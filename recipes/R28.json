@@ -1,0 +1,154 @@
+{
+  "id": "R28",
+  "version": 1,
+  "group": 3,
+  "title": "Fixed asset and construction-in-progress review with depreciation",
+  "prompt": "Review the fixed asset and construction-in-progress schedules. Identify assets ready for service, calculate depreciation under approved policies and propose entries.",
+  "keywords": [
+    "fixed assets",
+    "CIP",
+    "construction in progress",
+    "placed in service",
+    "depreciation",
+    "useful life",
+    "convention",
+    "capitalize",
+    "asset register",
+    "month end"
+  ],
+  "kind": "report",
+  "worker": "preparer",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "capitalizationThreshold",
+      "q": "Below what amount is an invoice expensed when paid rather than set up as a prepaid or an asset?",
+      "type": "number",
+      "scope": "*"
+    },
+    {
+      "key": "usefulLives",
+      "q": "What useful life applies to each asset class?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "depreciationConvention",
+      "q": "Which depreciation method and convention apply (straight-line, mid-month, half-year)?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "cipAccounts",
+      "q": "Which accounts hold construction in progress?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Fixed asset and CIP workbook with in-service evidence",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false,
+      "acceptedTypes": [
+        "xlsx",
+        "pdf"
+      ]
+    }
+  ],
+  "steps": [
+    "pull Dime's fixed asset schedule and the month's depreciation run; read the CIP account ledgers for the period",
+    "read the FA and CIP workbook and the in-service evidence: Dime's documents first, then a document request",
+    "list CIP items with evidence of being ready for service (delivery, installation, go-live) and the asset class and life they would take",
+    "run depreciation_recalc over the schedule under the stated lives and convention; list every asset where the recalculated month differs from Dime's",
+    "propose the month's depreciation run from the existing schedule (tier A); raise capitalizing a CIP item as a question (tier C), becoming a tier B proposal once the in-service date and life are confirmed",
+    "tie: schedule cost and accumulated depreciation to the ledger accounts; CIP listed items to the CIP balance"
+  ],
+  "compute": [
+    "depreciation_recalc"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the asset id or CIP transaction id and the evidence document",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "fixed-asset-review.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "fixed-asset-review.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "fixed-asset-review.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every proposed depreciation or capitalization entry balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-4",
+      "text": "Assets ready for service are listed with the evidence and date; every depreciation difference shows Dime's figure and the recalculated one; a capitalization is a question first and a proposal only after the in-service date and life are confirmed"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "depreciation_run",
+      "route": "depreciation run",
+      "tierRules": [
+        {
+          "when": "the month's depreciation from the existing schedule under the stated policy",
+          "tier": "A"
+        }
+      ]
+    },
+    {
+      "kind": "capitalize",
+      "route": "fixed asset capitalize from CIP",
+      "tierRules": [
+        {
+          "when": "moving a CIP item into service before the in-service date and useful life are confirmed",
+          "tier": "C"
+        },
+        {
+          "when": "the in-service date and useful life are confirmed by the approver",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "fixed-asset-review.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 10,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r28-seed-co"
+  ]
+}

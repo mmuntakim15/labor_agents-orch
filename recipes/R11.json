@@ -1,0 +1,110 @@
+{
+  "id": "R11",
+  "version": 1,
+  "group": 2,
+  "title": "Corporate card and expense platform reconciliation to the ledger",
+  "prompt": "Reconcile corporate card and expense-platform transactions to the ledger, including refunds, fees and settlements. Identify missing or duplicate postings.",
+  "keywords": [
+    "corporate card",
+    "expense platform",
+    "Ramp",
+    "Brex",
+    "card statement",
+    "refunds",
+    "fees",
+    "settlements",
+    "missing posting",
+    "duplicate posting",
+    "card liability"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "platformAccountMap",
+      "q": "Which ledger accounts does each card or expense platform post to (card liability or clearing, fee expense, settlement bank account)?",
+      "type": "list",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Card platform export",
+      "periodRule": "last_closed_month",
+      "source": "connection",
+      "connection": "Ramp",
+      "acceptedTypes": [
+        "csv"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "get the platform transactions for the month: the Ramp connection first, then the standing \"Card platform export\" csv, then a document request",
+    "pull the ledger rows for the mapped platform accounts for the period (card liability or clearing, fee expense, settlement bank account)",
+    "match platform transactions to ledger postings by platform id, then by date and amount; match refunds to their original charge, fees to the fee account and settlements to the bank outflow",
+    "run duplicate_pairs over the ledger postings with tolerance 0.01 (cents) and days 3 to find the same card transaction posted twice",
+    "list platform transactions with no posting (missing), postings with no platform transaction (unexplained) and duplicate postings, each with both ids",
+    "tie: platform statement total equals the ledger activity for the mapped accounts plus the listed differences"
+  ],
+  "compute": [
+    "duplicate_pairs"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the platform transaction id and, where one exists, the ledger transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "card-platform-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "card-platform-reconciliation.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "card-platform-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Refunds, fees and settlements are matched as their own item types, not folded into purchases; a missing posting is told apart from a duplicate posting and from a platform item still pending"
+    },
+    {
+      "id": "D-4",
+      "text": "The platform statement total and the ledger activity for the mapped accounts are both quoted on the Tie-out, with every difference listed and none netted"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "card-platform-reconciliation.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 10,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r11-seed-co"
+  ]
+}

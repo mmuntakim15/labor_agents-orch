@@ -1,0 +1,8 @@
+[
+  { "id": "B1", "vendor_name": "Acme Supply LLC", "issue_date": "2026-10-01T00:00:00.000Z", "amount_total": 1200, "status": "open" },
+  { "id": "B2", "vendor_name": "ACME SUPPLY, INC.", "issue_date": "2026-10-05T00:00:00.000Z", "amount_total": 1200, "status": "open" },
+  { "id": "B3", "vendor_name": "Acme Supply", "issue_date": "2026-12-01T00:00:00.000Z", "amount_total": 1200, "status": "open" },
+  { "id": "B4", "vendor_name": "Blue Water Co", "issue_date": "2026-10-10T00:00:00.000Z", "amount_total": 500, "status": "paid" },
+  { "id": "B5", "vendor_name": "Staples", "issue_date": "2026-10-10T00:00:00.000Z", "amount_total": 49.99, "status": "paid" },
+  { "id": "B6", "vendor_name": "No Amount Vendor", "issue_date": "2026-10-10T00:00:00.000Z", "status": "draft" }
+]

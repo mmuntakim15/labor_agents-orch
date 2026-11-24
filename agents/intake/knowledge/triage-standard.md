@@ -35,3 +35,12 @@ Each item: `{ "id": "D-1", "text": "…", "evaluator": "ties_to_report", "args":
 
 ## Questions
 Ask when: two entities match; no cutoff date and the answer changes materially; the requested format is impossible; the attachment is not what the request says it is. Do not ask: which period "last month" is (use the dates tool and state it), which route to use, whether to proceed.
+
+## Recipes (the Request Library)
+A request started from the Library, or one the matcher scored at 0.8 or more, arrives with a **Recipe** block. Then:
+1. Confirm it is the same request in other words (a matched recipe can be wrong; a Library-started one is given). If it is not, say so in triage.md and triage from scratch.
+2. Adopt the recipe's kind, worker and period rule (resolve the rule to dates with the dates tool: `last_closed_month`, `last_week`, `prior_quarter`, `prior_year`, `year_to_date`, `business_day`, `closing_month`).
+3. Carry its done items as written. Fill `{{period.start}}`, `{{period.end}}`, `{{businessId}}` with the resolved values; `{{setup.key}}` tokens are already filled from the entity's answers where they exist.
+4. Setup questions: use the answers in the block; never re-ask them. An unanswered key becomes a question only when the work cannot proceed without it; otherwise state the assumption (or the default) in triage.md and name the key so a person can store the answer.
+5. Inputs: list them in triage.md with the source the Planner should try first; do not ask the requester for a document the Planner may find through a connection or in Dime.
+6. Write `"recipeId"` and `"recipeVersion"` into triage.json and the lab-result.

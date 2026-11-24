@@ -1,0 +1,122 @@
+{
+  "id": "R03",
+  "version": 1,
+  "group": 1,
+  "title": "Clearing account items open more than 30 days",
+  "prompt": "Show all clearing account items older than 30 days and explain what each appears to relate to.",
+  "keywords": [
+    "clearing",
+    "suspense",
+    "undeposited funds",
+    "aged",
+    "older",
+    "stale items",
+    "open items",
+    "uncleared"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "last_week",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "clearingAccounts",
+      "q": "Which accounts are clearing or suspense accounts?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "expectedClearingDays",
+      "q": "How many days should an item normally take to clear?",
+      "type": "number",
+      "scope": "*",
+      "default": 30
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Bank statements or processor settlement reports",
+      "periodRule": "last_week",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "csv"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the single-account ledger for each clearing account from the start of the year",
+    "run open_item_age to pair debits with credits and age what is left open",
+    "for each open item older than the threshold, say what it appears to relate to and what would clear it",
+    "tie the open items to the account balance"
+  ],
+  "compute": [
+    "open_item_age"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the transaction id and the account",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "clearing-items.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The open items listed sum to each clearing account's balance at the cutoff",
+      "evaluator": "ties_to_gl_account",
+      "args": {
+        "account": "{{setup.clearingAccounts}}",
+        "startDate": "{{period.start}}",
+        "endDate": "{{period.end}}",
+        "name": "clearing-items.xlsx"
+      },
+      "expect": {
+        "figure": "endingBalance"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "clearing-items.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "clearing-items.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Items are aged individually, not as the net account balance"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "clearing-items.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r03-seed-co"
+  ]
+}

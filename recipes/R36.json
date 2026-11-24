@@ -1,0 +1,133 @@
+{
+  "id": "R36",
+  "version": 1,
+  "group": 4,
+  "title": "Budget versus actual by department and vendor with variance drivers",
+  "prompt": "Compare actual expenses to budget by department and vendor. Identify the drivers of significant variances and distinguish timing from ongoing cost changes.",
+  "keywords": [
+    "budget",
+    "actual",
+    "variance",
+    "department",
+    "vendor",
+    "drivers",
+    "timing",
+    "run rate",
+    "BvA",
+    "overspend"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "budgetVersion",
+      "q": "Which budget version is the comparison against (name or year, and whether reforecasts replace it)?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "varianceThreshold",
+      "q": "Above what variance (amount) does a line need a driver?",
+      "type": "number",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Budget by department and budget versus actual",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Expense transactions by department and vendor",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Budget workbook",
+      "periodRule": "last_closed_month",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": false,
+      "maxAgeDays": 90
+    }
+  ],
+  "steps": [
+    "pull the budget named by budgetVersion from Dime, else read the standing budget workbook; pull the month's expenses by department and vendor",
+    "compute the variance per department and vendor; every variance above varianceThreshold gets a driver from the transaction detail",
+    "label each driver timing (an invoice early or late, an accrual, a prepayment) or ongoing (a rate change, a new vendor, headcount)",
+    "run xlsx_update_in_place to write the month's actuals and variances into the standing budget workbook's actuals columns without touching its formulas",
+    "write the exceptions workbook"
+  ],
+  "compute": [
+    "xlsx_update_in_place"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Total actual expense for the month equals the operating expense total on Dime's profit and loss for the period",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "profit_and_loss",
+        "currentStart": "{{period.start}}",
+        "currentEnd": "{{period.end}}",
+        "name": "budget-vs-actual.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the department, the vendor id and the transaction ids behind the driver",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "budget-vs-actual.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "budget-vs-actual.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "budget-vs-actual.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every variance above the threshold is labelled timing or ongoing with the evidence; the budget version used is stated; the budget workbook keeps its formulas"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "budget-vs-actual.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r36-seed-co"
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "id": "R56",
+  "version": 1,
+  "group": 6,
+  "title": "Bank payments coded to expense that match an open bill, recoded against the bill",
+  "prompt": "Find bank payments in the last closed month coded straight to expense that match an open bill in AP, and propose recoding them against the bill.",
+  "keywords": [
+    "open bills",
+    "bank payments",
+    "coded to expense",
+    "double expense",
+    "recode",
+    "apply to bill",
+    "AP cleanup",
+    "overstated AP"
+  ],
+  "kind": "change_request",
+  "worker": "bookkeeper",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "apAccounts",
+      "q": "Which accounts are accounts payable?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "bankAccountsInScope",
+      "q": "Which bank accounts are reconciled every month?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Open bills and the AP aging",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Bank transactions coded to expense for the month",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read the period-lock state",
+    "pull the open bills and the month's bank outflows from bankAccountsInScope coded to an expense account, and the journal match candidates Dime offers for each",
+    "match a payment to a bill when the vendor is the same, the amount agrees to the cent and the dates are within 30 days; anything looser is listed, not proposed",
+    "propose the recode (tier A): apply the bank payment to the bill so the expense is not counted twice",
+    "write the workbook with the bank row and the bill on every exception"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the bank transaction id and the bill id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "bills-paid-direct.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "bills-paid-direct.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "bills-paid-direct.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every proposal names a route the desk may call and carries no unbalanced entry",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-4",
+      "text": "Only exact matches (same vendor, amount to the cent, within 30 days) are proposed; near matches are listed for a person; a closed period turns the recode into a question"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "recode_to_bill",
+      "route": "POST /api/v1/transactions/accounting/bookkeeping/businessId/:businessId/bill/:billId/apply-payment",
+      "tierRules": [
+        {
+          "when": "same vendor, amount agrees to the cent, bank date within 30 days of the bill date",
+          "tier": "A"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "bills-paid-direct.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r56-seed-co"
+  ]
+}

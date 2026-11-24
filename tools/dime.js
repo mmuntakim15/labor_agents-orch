@@ -4,7 +4,9 @@
 // and leave a receipt; writes are staged as proposals for a named human.
 //
 //   node tools/dime.js call       --request REQ-1 --method GET --path /api/v1/… [--query '<json>'] [--body '<json>'|--body-file f] [--out name] [--raw]
-//   node tools/dime.js propose    --request REQ-1 --kind vendor --tier A --summary "…" --method POST --path /api/v1/… (--body '<json>'|--body-file f) [--amount n] [--entry-file f]
+//   node tools/dime.js propose    --request REQ-1 --kind vendor --tier A --summary "…" --method POST --path /api/v1/… (--body '<json>'|--body-file f) [--amount n] [--entry-file f] [--facts '<json>'] [--previous '<json>']
+//     --facts: what the tier rule needs to decide (e.g. {"exact":true,"statedServicePeriod":true,"rule":true,"mapped":true}); the policy promotes to tier A only on facts it can read
+//     --previous: the record's state before the change (e.g. {"accounting_category":"5100 Supplies"}), so a policy-applied change can be reversed from the digest
 //   node tools/dime.js businesses --request REQ-1
 //   node tools/dime.js dates      --month YYYY-MM | --quarter YYYY-Qn | --year YYYY | --last-months N [--as-of YYYY-MM-DD]
 //
@@ -39,8 +41,8 @@ async function main() {
     // the client list carries the names; it is heavy (chart of accounts per business), so only names, ids and status are returned and nothing is saved
     const req = loadReq();
     const search = flag('search');
-    const r = await D.call({ backend: req.backend, method: 'GET', path: '/api/v1/accountant/dashboard/businessList', query: search ? { searchKey: search } : null });
-    R.append(req.id, { method: 'GET', path: '/api/v1/accountant/dashboard/businessList', url: r.url, status: r.status, bytes: r.bytes, ms: r.ms, argsHash: r.argsHash, run: process.env.LAB_RUN || null, purpose: 'businesses the desk can see' });
+    const r = await D.call({ backend: req.backend, request: req, method: 'GET', path: '/api/v1/accountant/dashboard/businessList', query: search ? { searchKey: search } : null });
+    R.append(req.id, { method: 'GET', path: '/api/v1/accountant/dashboard/businessList', url: r.url, status: r.status, bytes: r.bytes, ms: r.ms, argsHash: r.argsHash, auth: r.auth, run: process.env.LAB_RUN || null, purpose: 'businesses the desk can see' });
     if (!r.ok) return out({ ok: false, error: D.humanize(r.status, r.json), status: r.status });
     const arr = (r.json && (r.json.businesses || r.json.data || [])) || [];
     const list = arr.map((b) => { const i = b.businessInfo || {}; return { businessId: String(b._id || b.businessId || ''), name: i.businessName || i.dba || i.companyName || null, dba: i.dba && i.dba !== i.businessName ? i.dba : undefined, status: b.status || null, currency: b.functionalCurrency || null, fiscalYearEnd: i.fiscalYearEnd || null, archived: Boolean(b.archivedAt) }; });
@@ -59,8 +61,8 @@ async function main() {
     if (e.denied) { R.append(req.id, { method, path: p, status: 'refused', refused: `policy: ${e.denied}`, run: process.env.LAB_RUN || null }); return out({ ok: false, error: `${method} ${p} is denied by policy (${e.denied}); nothing was called. Say in your report that the request needs it.` }); }
     if (!e.read) { R.append(req.id, { method, path: p, status: 'refused', refused: 'write during execution', run: process.env.LAB_RUN || null }); return out({ ok: false, error: `${method} ${p} is a write. Nothing was called. Stage it for approval instead: node ${path.join(ROOT, 'tools', 'dime.js')} propose --request ${req.id} --kind <kind> --tier A|B|C --summary "…" --method ${method} --path ${p} --body '<json>'` }); }
     const query = jsonFlag('query'); const body = bodyArg();
-    const r = await D.call({ backend: req.backend, method, path: p, query, body });
-    const rec = { method, path: p, url: r.url, status: r.status, bytes: r.bytes, ms: r.ms, argsHash: r.argsHash, run: process.env.LAB_RUN || null, purpose: e.purpose ? e.purpose.slice(0, 120) : null };
+    const r = await D.call({ backend: req.backend, request: req, method, path: p, query, body });
+    const rec = { method, path: p, url: r.url, status: r.status, bytes: r.bytes, ms: r.ms, argsHash: r.argsHash, auth: r.auth || null, run: process.env.LAB_RUN || null, purpose: e.purpose ? e.purpose.slice(0, 120) : null };
     let saved = null;
     const name = flag('out');
     if (name) {
@@ -93,7 +95,9 @@ async function main() {
     if (forced.tier === 'C') return out({ ok: true, ...PR.add(req.id, { kind, tier: 'C', summary, question: summary, method: null, path: null, body: null }), next: 'Tier C is a question for a person: it never carries a payload. Explain the judgment call in work.md.' });
     const bal = entry ? PR.balanced(entry) : null;
     if (entry && !bal.ok) return out({ ok: false, error: `journal entry does not balance: debits ${bal.debits} vs credits ${bal.credits}. Fix it before proposing.` });
-    const res = PR.add(req.id, { kind, tier: forced.tier, tierReason: forced.reason, summary, method, path: p, body, amount: flag('amount') != null ? Number(flag('amount')) : PR.amountOf(body, entry), entry, endpointPurpose: e.purpose || null });
+    const facts = jsonFlag('facts'); const previous = jsonFlag('previous');
+    if (facts !== null && (typeof facts !== 'object' || Array.isArray(facts))) return out({ ok: false, error: '--facts must be a JSON object of booleans/numbers the tier rule reads (exact, rule, mapped, statedServicePeriod, …)' });
+    const res = PR.add(req.id, { kind, tier: forced.tier, tierReason: forced.reason, summary, method, path: p, body, amount: flag('amount') != null ? Number(flag('amount')) : PR.amountOf(body, entry), entry, endpointPurpose: e.purpose || null, ...(facts ? { facts } : {}), ...(previous ? { previous } : {}) });
     return out({ ok: true, ...res, next: `Proposal ${res.proposal.id} staged (tier ${forced.tier}${forced.reason ? `: ${forced.reason}` : ''}). It is applied only after a named person approves it at Gate 2. Do not call the route yourself.` });
   }
 

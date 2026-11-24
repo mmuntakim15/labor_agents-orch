@@ -1,0 +1,8 @@
+{
+  "logs": [
+    { "event_id": "e1", "event_type": "SYNC_UPDATES_AVAILABLE", "source": "webhook", "status": "processed", "plaid_item_id": "it1", "createdAt": "2026-11-23T10:00:00.000Z" },
+    { "event_id": "e2", "event_type": "manual_sync", "source": "manual_sync", "status": "failed", "plaid_item_id": "it1", "error": "ITEM_LOGIN_REQUIRED", "createdAt": "2026-11-23T12:00:00.000Z" },
+    { "event_id": "e3", "event_type": "SYNC_UPDATES_AVAILABLE", "source": "webhook", "status": "processed", "plaid_item_id": "it1", "createdAt": "2026-11-24T09:00:00.000Z" }
+  ],
+  "pagination": { "page": 1, "limit": 50, "total": 3 }
+}

@@ -1,6 +1,7 @@
 node_modules/
 requests/
 runs/
+evals/reports/
 knowledge/generated/ENDPOINTS.json
 config/*.local.json
 .DS_Store

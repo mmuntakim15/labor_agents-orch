@@ -66,6 +66,8 @@ function createRequest({ title, body, reporter = 'human', backend = null }) {
     answers: '',
     pendingQuestions: [],
     proposals: [],         // mirror of proposals.json statuses (id, status, by, at, appliedRef)
+    touches: 0,            // decisions a person made on this request (gates, proposals, answers, inputs); policy decisions never count
+    inputsNeeded: [],      // RD-2: documents only a person can supply [{name, period, why, acceptedTypes, askedAt, receivedAt, missing}]
     children: [],
     parentId: null,
     runs: [],

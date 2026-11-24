@@ -45,6 +45,13 @@ node bin/lab proposal REQ-2 P-1 --by "Mo" --decision approve [--amount 2450]
 node bin/lab approve REQ-2 --gate 2 --by "Mo" && node bin/lab run REQ-2
 node bin/lab sendback REQ-1 --by "Mo" --note "add the memo"
 node bin/lab worker                   # process every runnable request, with locks and admission
+# RD-2 (the Request Library and L4 autonomy)
+node bin/lab recipes list|validate|match "<text>"|library     # the 60 recipes; match shows what intake would adopt
+node bin/lab recipes compile REQ-7 && node bin/lab recipes candidates   # a solved general-lane request becomes a candidate recipe
+node bin/lab policy show --business <id>  |  lab policy set --business <id> --writes off --by Mo   # kill switch, preview
+node bin/lab digest --business <id> [--date YYYY-MM-DD]   # what policy applied today, what waits for a decision
+node bin/lab reverse REQ-9 P-1 --by Mo --reason "wrong bill"   # undo a policy-applied write within 30 days
+node bin/lab input REQ-9 --by Mo --name "Payroll register" --attach register.xlsx   # answer a document request
 ```
 
 ## Layout
@@ -55,7 +62,13 @@ config/backends.json    Dime backends  (+ backends.local.json: service login, gi
 src/orchestrator.js     pure transitions, run loop, gates, admission, worker, metrics
 src/dime.js map.js      HTTP client · endpoint map          src/done.js          definition-of-done evaluators
 src/proposals.js apply.js receipts.js evidence.js           src/xlsx.js markdown.js
-tools/{map,dime,files,export,check}.js   the agents' whole tool surface (the Bash allow list)
+tools/{map,dime,files,export,check,compute,sandbox}.js   the agents' whole tool surface (the Bash allow list)
+recipes/*.json          the Request Library: 60 versioned recipes (RD-2); recipes/candidates/ = learned from solved requests
+src/recipes.js          load · validate · match · library.json · compile/promote candidates (FR-37)
+src/compute/<verb>.js   17 pure, fixture-tested calculations the API lacks (duplicate_pairs, open_item_age, rollforward, scf_indirect, …)
+src/sandbox.js          a verified program sandbox for calculations no verb covers; the Verifier reruns by sha (FR-36)
+src/policy.js           per-entity autonomy policy: decide() → tier/gates/autoApply; config/policy/<businessId>.json
+src/reverse.js digest.js   one-click reversal of policy-applied writes · the daily digest and L4 level/metrics
 hooks/guard.js          PreToolUse guard: only the tools; no env, mongo, curl, git; writes in roots
 agents/<name>/          AGENT.md · REQUIREMENTS.md · knowledge/ · index.js
 knowledge/shared/       house rules, lane, request format, learned lessons

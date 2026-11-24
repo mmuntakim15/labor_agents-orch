@@ -1,0 +1,122 @@
+{
+  "id": "R37",
+  "version": 1,
+  "group": 4,
+  "title": "Month-over-month payroll and contractor expense bridge",
+  "prompt": "Explain the change in payroll and contractor expenses month over month, separating headcount, rate changes, one-time costs and timing.",
+  "keywords": [
+    "payroll",
+    "contractor",
+    "headcount",
+    "rate change",
+    "one-time",
+    "bonus",
+    "timing",
+    "bridge",
+    "month over month",
+    "compensation"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Payroll register for the month and the prior month",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv",
+        "pdf"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Headcount report by month",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv"
+      ],
+      "optional": true
+    },
+    {
+      "name": "Contractor invoices and bills for the month and the prior month",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the payroll and contractor expense lines from the general ledger for the month and the prior month",
+    "run column_map over the payroll register and the headcount report to align employee, pay type and amount columns",
+    "bridge the change: headcount (joiners and leavers), rate changes (same person, different rate), one-time costs (bonuses, severance, true-ups) and timing (pay dates, accruals, invoice dates)",
+    "match contractor invoices by vendor across the two months and classify each change the same way",
+    "write the workbook; individual pay appears only in the Detail sheet and the summary names no person"
+  ],
+  "compute": [
+    "column_map"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The register and headcount columns map without ambiguity",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "payroll-columns.json"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the employee id or vendor id and the register row or bill id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "payroll-bridge.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "payroll-bridge.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "payroll-bridge.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "The four buckets sum to the month-over-month change with no residual; pay data stays in the Detail sheet; the summary names no individual"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "payroll-bridge.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-pending",
+  "restrictedData": true,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r37-seed-co"
+  ]
+}

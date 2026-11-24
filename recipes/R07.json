@@ -1,0 +1,96 @@
+{
+  "id": "R07",
+  "version": 1,
+  "group": 1,
+  "title": "AP balance by vendor at each month end with debit balances and duplicate vendor names",
+  "prompt": "Show the AP balance by vendor at each month end this year. Flag vendors with debit balances and vendor records that look like the same vendor under two names.",
+  "keywords": [
+    "accounts payable",
+    "AP aging",
+    "debit balance",
+    "duplicate vendor",
+    "vendor names",
+    "control account",
+    "month end balances"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "year_to_date",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [],
+  "steps": [
+    "pull the AP aging as of each month end this year",
+    "build the vendor by month table and tie each month's total to the balance sheet AP line",
+    "flag debit balances",
+    "run name_similarity over the vendor list for near-duplicate names"
+  ],
+  "compute": [
+    "name_similarity"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The vendor table total at the latest month end equals accounts payable on Dime's balance sheet",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "balance_sheet",
+        "currentStart": "{{period.start}}",
+        "currentEnd": "{{period.end}}",
+        "name": "ap-by-vendor.xlsx"
+      },
+      "expect": {
+        "figure": "accountsPayable"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the vendor id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "ap-by-vendor.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "ap-by-vendor.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "ap-by-vendor.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every debit balance says which payment was likely applied to the wrong vendor; near-duplicate names are listed as pairs with the evidence"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "ap-by-vendor.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r07-seed-co"
+  ]
+}

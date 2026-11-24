@@ -1,0 +1,27 @@
+{
+  "summary": { "totalYTDSpend": 100000, "priorYTDSpend": 90000 },
+  "monthlySpendTrend": [
+    { "month": "Jun", "amount": 4215 }, { "month": "Jul", "amount": 4295 }, { "month": "Aug", "amount": 4215 },
+    { "month": "Sep", "amount": 4385 }, { "month": "Oct", "amount": 5115 }, { "month": "Nov", "amount": 1200 }
+  ],
+  "vendorRows": [
+    { "vendorName": "Rent Co", "account": "Rent", "ytdSpend": 33000, "monthlySpend": [
+      { "month": "Jun", "amount": 3000 }, { "month": "Jul", "amount": 3000 }, { "month": "Aug", "amount": 3000 },
+      { "month": "Sep", "amount": 3000 }, { "month": "Oct", "amount": 3000 }, { "month": "Nov", "amount": 0 } ] },
+    { "vendorName": "Rent Co", "account": "Utilities", "ytdSpend": 50, "monthlySpend": [
+      { "month": "Jun", "amount": 0 }, { "month": "Jul", "amount": 0 }, { "month": "Aug", "amount": 0 },
+      { "month": "Sep", "amount": 50 }, { "month": "Oct", "amount": 0 }, { "month": "Nov", "amount": 0 } ] },
+    { "vendorName": "Gusto", "account": "Payroll Fees", "ytdSpend": 13200, "monthlySpend": [
+      { "month": "Jun", "amount": 1200 }, { "month": "Jul", "amount": 1200 }, { "month": "Aug", "amount": 1200 },
+      { "month": "Sep", "amount": 1200 }, { "month": "Oct", "amount": 1200 }, { "month": "Nov", "amount": 1200 } ] },
+    { "vendorName": "Staples", "account": "Office Supplies", "ytdSpend": 200, "monthlySpend": [
+      { "month": "Jun", "amount": 0 }, { "month": "Jul", "amount": 80 }, { "month": "Aug", "amount": 0 },
+      { "month": "Sep", "amount": 120 }, { "month": "Oct", "amount": 0 }, { "month": "Nov", "amount": 0 } ] },
+    { "vendorName": "Zoom", "account": "Software", "ytdSpend": 165, "monthlySpend": [
+      { "month": "Jun", "amount": 15 }, { "month": "Jul", "amount": 15 }, { "month": "Aug", "amount": 15 },
+      { "month": "Sep", "amount": 15 }, { "month": "Oct", "amount": 15 }, { "month": "Nov", "amount": 0 } ] },
+    { "vendorName": "Newbie LLC", "account": "Consulting", "ytdSpend": 900, "monthlySpend": [
+      { "month": "Jun", "amount": 0 }, { "month": "Jul", "amount": 0 }, { "month": "Aug", "amount": 0 },
+      { "month": "Sep", "amount": 0 }, { "month": "Oct", "amount": 900 }, { "month": "Nov", "amount": 0 } ] }
+  ]
+}

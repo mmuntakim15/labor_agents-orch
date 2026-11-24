@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Fixed assets without depreciation and inactive CIP",
+    "body": "Which fixed assets have been placed in service but have no depreciation recorded, and which construction-in-progress items have been inactive for more than 90 days? Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "question",
+      "worker": "investigator",
+      "writes": false,
+      "recipeId": "R05"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R05 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"Fixed assets / CIP review\",\"exceptions\":[{\"kind\":\"cip_inactive\",\"account\":\"1590 Construction in Progress\",\"amount\":\"12000.00\",\"lastActivity\":\"2026-07-01\",\"inactiveDaysAt2026_11_30\":152},{\"kind\":\"depreciation_missing\",\"asset\":\"FA-1000 Dental chair\",\"months\":[{\"month\":\"2026-10-31\",\"amount\":\""
+  }
+}

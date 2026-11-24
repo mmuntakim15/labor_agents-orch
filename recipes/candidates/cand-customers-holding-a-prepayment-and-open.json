@@ -1,0 +1,114 @@
+{
+  "id": "cand-customers-holding-a-prepayment-and-open",
+  "candidate": true,
+  "version": 0,
+  "group": 2,
+  "title": "Customers holding a prepayment and open AR, RD-2 Seed Co",
+  "prompt": "Which customers held an unapplied prepayment or credit at 30 November 2026 and also had an open invoice on the same date? List each customer with both amounts and the invoice numbers. Entity: RD-2 Seed Co.",
+  "keywords": [
+    "unapplied prepayment",
+    "customer credit",
+    "open invoice"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": null,
+    "periodRule": "current_month",
+    "event": null
+  },
+  "subjectPattern": {
+    "entity": "$current",
+    "periods": "current_month",
+    "count": 1,
+    "inferred": true
+  },
+  "setup": [],
+  "inputs": [],
+  "steps": [],
+  "compute": [],
+  "programs": [
+    "826aefc665b8471976544d78c871ee457a1164becf2d5f20dc84c6baf8957b81"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The work read Dime at least twice (open invoices and unapplied credits).",
+      "evaluator": "receipts_min",
+      "args": {},
+      "expect": {
+        "min": 2
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every customer listed has both an unapplied amount and an open-invoice amount at 30 November 2026, with its invoice numbers."
+    },
+    {
+      "id": "D-3",
+      "text": "Customers with only one of the two are not listed."
+    },
+    {
+      "id": "D-4",
+      "text": "The answer states the as-of date used (30 November 2026 is after today) and anything that could not be determined."
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "prepayments-and-unpaid-invoices-2026-11-30.xlsx",
+      "sheets": [
+        "Customers with both",
+        "Unpaid invoices",
+        "Unapplied receipts",
+        "Not listed",
+        "All customer receipts",
+        "All invoices",
+        "Sources"
+      ],
+      "kind": "xlsx"
+    },
+    {
+      "name": "memo-prepayments-and-unpaid-invoices.md",
+      "sheets": [],
+      "kind": "md"
+    },
+    {
+      "name": "memo-prepayments-and-unpaid-invoices.pdf",
+      "sheets": [],
+      "kind": "pdf"
+    }
+  ],
+  "gaps": [],
+  "autonomyCeiling": "L3-policy",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "check",
+    "export",
+    "sandbox"
+  ],
+  "evals": [
+    "evals/cases/cand-customers-holding-a-prepayment-and-open"
+  ],
+  "learnedFrom": [
+    "REQ-13"
+  ],
+  "used": 1,
+  "entities": [
+    "6b04fbe033bad113b98931d4"
+  ],
+  "compiledAt": "2026-11-24T03:34:31.819Z",
+  "compiledFrom": {
+    "kind": "question",
+    "size": "S",
+    "writes": false,
+    "periods": [
+      "2026-11"
+    ],
+    "createdAt": "2026-11-24T03:24:42.461Z"
+  }
+}

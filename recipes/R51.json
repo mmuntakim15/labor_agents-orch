@@ -1,0 +1,136 @@
+{
+  "id": "R51",
+  "version": 1,
+  "group": 6,
+  "title": "Reclassifications for transactions coded against the mapping rules",
+  "prompt": "Review transactions coded to the wrong department or account based on approved mapping rules and propose reclassifications.",
+  "keywords": [
+    "reclass",
+    "reclassification",
+    "miscoded",
+    "department",
+    "mapping rules",
+    "coding rules",
+    "bulk categorization",
+    "wrong account"
+  ],
+  "kind": "change_request",
+  "worker": "bookkeeper",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "codingRules",
+      "q": "Where are the approved coding rules (vendor to account, vendor to department, keyword rules) and who approved them?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Transactions for the month with account and department",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Categorization rules in Dime",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Mapping workbook (vendor and keyword to account and department)",
+      "periodRule": "last_closed_month",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx",
+        "csv"
+      ],
+      "optional": false,
+      "maxAgeDays": 180
+    }
+  ],
+  "steps": [
+    "read the period-lock state; a closed period is a question, not a proposal",
+    "pull the month's transactions with account and department, and Dime's categorization rules; read the standing mapping workbook",
+    "run coding_consistency: each transaction against the rule that applies to its vendor or description",
+    "propose one bulk categorization per target account and department: tier A where a deterministic rule names the target, tier B where the target is a judgement",
+    "write the workbook with the rule cited for every reclass"
+  ],
+  "compute": [
+    "coding_consistency"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the transaction id and the rule it fails",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "reclass-proposals.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "reclass-proposals.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "reclass-proposals.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every proposal names a route the desk may call and carries no unbalanced entry",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-4",
+      "text": "Every reclass cites its rule; no transaction without a rule is reclassed at tier A; closed periods produce a question, not a proposal"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "transaction_bulk_categorization",
+      "route": "PUT /api/v1/transactions/accounting/businessId/:businessId/transactions/bulk",
+      "tierRules": [
+        {
+          "when": "a deterministic approved rule names the target account and department",
+          "tier": "A"
+        },
+        {
+          "when": "the target follows from judgement about the transaction",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "reclass-proposals.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r51-seed-co"
+  ]
+}

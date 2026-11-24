@@ -22,9 +22,14 @@ build plan, and `docs/TECH_SPEC.md` for how it fits together.
 - `dashboard/` — the web UI (server + static page); it calls orchestrator functions and never runs an agent in-process.
 - Tests and trial runs use `LAB_REQUESTS_DIR`, `LAB_RUNS_DIR`, `LAB_EVENTS_FILE` and `LAB_CLAUDE_BIN` so they never write into `requests/`, `runs/` or spend money.
 
+## RD-2 rules (the Request Library and policy-driven autonomy)
+9. **Recipes are data.** A request type is `recipes/Rnn.json` (validated by `src/recipes.js`), never a prompt edit. A new recipe needs ≥1 code-judged done item and an eval case; `lab recipes validate` must stay clean and `knowledge/generated/library.json` regenerated (`lab recipes library`).
+10. **Compute verbs are pure.** Anything under `src/compute/` takes files in, returns JSON, has fixtures and a determinism test (`test/compute/`). The model never does arithmetic a verb covers; a program in the sandbox is for what no verb covers and is rerun by the Verifier by sha.
+11. **Policy is the only non-human decider, and it is labelled.** Tier-A applies are written as `policy@v<n>`; `src/policy.js decide()` is the one place a tier or gate is computed; always-human kinds (locks, finalize, delete, closed periods, payments, e-mail, master identity) cannot be granted by any policy file.
+
 ## Verify before you say done
 ```bash
 nvm use 20
-npm run check && npm test && node bin/lab doctor
+npm run check && npm test && node bin/lab doctor && node bin/lab recipes validate
 ```
 A change to an agent's prompt is verified with `lab run <ID> --dry-run` (prints the assembled prompt path and tool configuration) before a paid run.

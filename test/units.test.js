@@ -94,7 +94,7 @@ test('proposals: tiers never promote, entries must balance, decisions carry name
   assert.equal(proposal.id, 'P-1'); assert.equal(proposal.status, 'proposed');
   assert.throws(() => PR.decide(r.id, 'P-1', { status: 'applied', by: 'Mo' }), /bad proposal status/);
   PR.decide(r.id, 'P-1', { status: 'rejected', by: 'Mo', note: 'dup' });
-  assert.deepEqual(PR.summary(r.id), { total: 1, proposed: 0, approved: 0, rejected: 1, applied: 0, failed: 0, questions: 0, answered: 0, pending: 0 });
+  assert.deepEqual(PR.summary(r.id), { total: 1, proposed: 0, approved: 0, rejected: 1, applied: 0, reversed: 0, failed: 0, questions: 0, answered: 0, pending: 0, policyApproved: 0 });
 });
 
 test('plan validation against the map', () => {

@@ -1,0 +1,162 @@
+{
+  "id": "R25",
+  "version": 1,
+  "group": 3,
+  "title": "Prepaid expense rollforward from invoices and service dates",
+  "prompt": "Build a prepaid expense rollforward from invoices and contractual service dates. Calculate current-month amortization and remaining balances.",
+  "keywords": [
+    "prepaid",
+    "rollforward",
+    "amortization",
+    "service period",
+    "straight-line",
+    "remaining balance",
+    "prepaid schedule",
+    "insurance",
+    "subscriptions",
+    "annual contracts"
+  ],
+  "kind": "report",
+  "worker": "bookkeeper",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "capitalizationThreshold",
+      "q": "Below what amount is an invoice expensed when paid rather than set up as a prepaid or an asset?",
+      "type": "number",
+      "scope": "*"
+    },
+    {
+      "key": "amortizationMethod",
+      "q": "How are prepaids amortized (straight-line by month, by day, half-month convention)?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "prepaidAccount",
+      "q": "Which ledger account (or accounts) holds prepaid expenses?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Vendor invoices and service agreements for prepaid items",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false,
+      "acceptedTypes": [
+        "pdf",
+        "xlsx"
+      ]
+    }
+  ],
+  "steps": [
+    "pull the prepaid account ledger for the period and the invoices behind each addition: Dime's documents first, then a document request",
+    "read the service period from each invoice or agreement; an invoice below the threshold is expensed and listed, not scheduled",
+    "build the schedule per item: cost, service start and end, monthly amortization under the stated method; run rollforward (opening, additions, amortization, closing) to the Detail sheet",
+    "propose a prepaid schedule per new item (tier A with a stated service period, tier C when none) and the month's amortization entry (tier A) debiting the expense and crediting prepaid",
+    "tie the schedule closing to the prepaid account balance; list every difference item by item"
+  ],
+  "compute": [
+    "rollforward"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The Detail sheet rolls forward per prepaid item: opening plus additions less amortization equals closing on every row and the totals row equals the column sums",
+      "evaluator": "rollforward_ties",
+      "args": {
+        "name": "prepaid-rollforward.xlsx",
+        "sheet": "Detail"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "No two proposals schedule or amortize the same vendor, amount and period",
+      "evaluator": "no_double_count",
+      "args": {}
+    },
+    {
+      "id": "D-3",
+      "text": "Every proposed amortization entry balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-4",
+      "text": "Every exception row cites the invoice id or the ledger transaction id and the schedule line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "prepaid-rollforward.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "prepaid-rollforward.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "prepaid-rollforward.xlsx"
+      }
+    },
+    {
+      "id": "D-6",
+      "text": "Each item's service period comes from the invoice or agreement and is quoted; an item with no stated service period is a question, not a schedule"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "prepaid_schedule",
+      "route": "prepaid schedule create",
+      "tierRules": [
+        {
+          "when": "the invoice or agreement states the service period",
+          "tier": "A"
+        },
+        {
+          "when": "no service period is stated",
+          "tier": "C"
+        }
+      ]
+    },
+    {
+      "kind": "journal_entry",
+      "route": "journal entry amortization",
+      "tierRules": [
+        {
+          "when": "the month's amortization from a schedule with a stated service period under the stated method",
+          "tier": "A"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "prepaid-rollforward.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r25-seed-co"
+  ]
+}

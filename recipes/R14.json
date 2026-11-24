@@ -1,0 +1,151 @@
+{
+  "id": "R14",
+  "version": 1,
+  "group": 2,
+  "title": "Retirement contributions withheld versus remitted to the plan",
+  "prompt": "Reconcile employee and employer retirement contributions withheld through payroll to amounts remitted to the plan. Flag missed or duplicate deductions.",
+  "keywords": [
+    "401k",
+    "401(k)",
+    "retirement plan",
+    "deferrals",
+    "employer match",
+    "remittance",
+    "plan provider",
+    "missed deduction",
+    "duplicate deduction",
+    "pay run",
+    "last pay date (period rule stand-in: business_day)"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": null,
+    "periodRule": "business_day",
+    "event": "payroll.pay_run",
+    "cadence": "each pay run"
+  },
+  "comment": "Trigger period rule: the library has no last_pay_date rule yet, so business_day stands in; the pay period itself comes from the payCalendar setup answer and the register dates. Runs on the payroll.pay_run event or on request.",
+  "setup": [
+    {
+      "key": "planProvider",
+      "q": "Who is the retirement plan provider or recordkeeper?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "matchFormula",
+      "q": "What is the employer match formula (for example 100% of the first 3% and 50% of the next 2%)?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "liabilityAccount",
+      "q": "Which ledger account holds retirement contributions payable?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Payroll deduction export for the pay period (employee and employer retirement lines)",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "csv",
+        "xlsx"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Plan remittance report for the same pay period",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "csv",
+        "xlsx"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "run column_map over the deduction export and the remittance report (headers never positions) and save the mapping to data/deduction-columns.json",
+    "total employee deferrals and employer match from the deduction export; recompute the match per employee id from the match formula and list rows where the paid match differs",
+    "run duplicate_pairs over the deduction rows (same employee id, same amount, same pay date) for duplicate deductions; list eligible employees with no deduction in the period as missed",
+    "tie withheld totals to remitted totals per contribution type; pull the liability account ledger and tie the remittance to its posting",
+    "write the workbook with employee ids only, totals on the Tie-out, no names or pay"
+  ],
+  "compute": [
+    "column_map",
+    "duplicate_pairs"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The deduction export and remittance report columns were mapped by header with no ambiguous or missing required column",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "deduction-columns.json"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the employee id and the payroll line or remittance line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "retirement-remittance-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "retirement-remittance-reconciliation.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "retirement-remittance-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "The deliverable describes deductions and remittances, never people's conduct",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "retirement-remittance-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Missed and duplicate deductions are listed by employee id with the pay date and amount; the employer match is recomputed from the stated formula and differences shown with both figures"
+    },
+    {
+      "id": "D-6",
+      "text": "No employee name or pay figure appears in the deliverable; the Tie-out carries totals by contribution type only"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "retirement-remittance-reconciliation.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-pending",
+  "restrictedData": true,
+  "budgetUsd": 10,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r14-seed-co"
+  ]
+}

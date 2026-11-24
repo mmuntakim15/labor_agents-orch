@@ -16,6 +16,7 @@
   const COLS = [
     { title: 'Received', sub: 'Reading your request', statuses: ['intake'] },
     { title: 'Planning', sub: 'What will be pulled and prepared', statuses: ['scope'] },
+    { title: 'Needs a document', sub: 'Waiting for a file from you', statuses: ['awaiting_input'], gate: true },
     { title: 'Approve plan', sub: 'Waiting for you', statuses: ['awaiting_gate_1'], gate: true },
     { title: 'Preparing', sub: 'Pulling figures, building the files', statuses: ['execute', 'children'] },
     { title: 'Review', sub: 'Figures re-checked against Dime', statuses: ['verify'] },
@@ -24,8 +25,8 @@
     { title: 'Wrapping up', sub: 'Summary and files', statuses: ['deliver'] },
     { title: 'Done', sub: '', statuses: ['done', 'cancelled'], cap: 8 },
   ];
-  const STEP = { intake: 'Received', scope: 'Planning', awaiting_gate_1: 'Approve plan', execute: 'Preparing', verify: 'Review', awaiting_gate_2: 'Approve changes', apply: 'Posting', deliver: 'Wrapping up', children: 'Parts in progress', done: 'Done', cancelled: 'Cancelled', blocked: 'On hold' };
-  const SHORT = { awaiting_gate_1: 'Approve plan', awaiting_gate_2: 'Approve changes', children: 'Parts' };
+  const STEP = { intake: 'Received', scope: 'Planning', awaiting_input: 'Needs a document', awaiting_gate_1: 'Approve plan', execute: 'Preparing', verify: 'Review', awaiting_gate_2: 'Approve changes', apply: 'Posting', deliver: 'Wrapping up', children: 'Parts in progress', done: 'Done', cancelled: 'Cancelled', blocked: 'On hold' };
+  const SHORT = { awaiting_input: 'Document', awaiting_gate_1: 'Approve plan', awaiting_gate_2: 'Approve changes', children: 'Parts' };
   const KIND = { report: 'Report', export: 'Export', question: 'Question', data_task: 'Document task', change_request: 'Change to the books' };
   const ROLE = { requester: 'Requester', approver: 'Approver', operator: 'Operator' };
   const ATTENTION = { gate: 'needs your approval', questions: 'has questions for you', blocked: 'is blocked', error: 'stopped unexpectedly' };

@@ -1,0 +1,142 @@
+{
+  "id": "R30",
+  "version": 1,
+  "group": 3,
+  "title": "Month-end audit support package",
+  "prompt": "Compile a month-end audit support package from the trial balance, account schedules, reconciliations and journal-entry support.",
+  "keywords": [
+    "audit support",
+    "PBC",
+    "support package",
+    "binder",
+    "trial balance",
+    "schedules",
+    "reconciliations",
+    "journal entry support",
+    "auditor request"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "auditRequestFormat",
+      "q": "How does the auditor want the package laid out (one file per account, one binder, their request list numbering)?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "accountsInScope",
+      "q": "Which accounts does the package cover? Leave blank for every balance sheet account with a balance.",
+      "type": "accounts",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Audit engagement artifacts and request list",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Report packages for the period",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Document vault files for the period",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Reconciliations and schedules kept outside Dime",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "pdf"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the as-of trial balance for the last closed month and fix the account list from accountsInScope (or every balance sheet account with a balance)",
+    "for each account, collect the schedule, reconciliation and journal-entry support Dime holds (workpapers, bank reconciliations, audit engagement artifacts, vault files, report packages)",
+    "for each journal entry in the month over the flag threshold the engagement sets, locate its support document",
+    "list every account or entry with no support found as a missing-support item with where support was looked for",
+    "write the package index in the auditor's format and the workbook"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The Detail sheet lists every account in scope with its period-end balance, and the total ties to Dime's trial balance as of the period end",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "trial_balance",
+        "asOf": "{{period.end}}",
+        "name": "audit-support-package.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row is a missing-support item and cites the account id or journal id and the last place support was looked for",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "audit-support-package.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "audit-support-package.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "audit-support-package.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "The package index follows the auditor's requested format; support the desk could not reach is told apart from support that does not exist; nothing is sent to the auditor"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "audit-support-package.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    },
+    {
+      "name": "audit-support-index.pdf",
+      "sheets": [
+        "Index",
+        "Accounts",
+        "Journal entries",
+        "Missing support"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 15,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r30-seed-co"
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "id": "R57",
+  "version": 1,
+  "group": 7,
+  "title": "Daily integration exceptions digest",
+  "prompt": "Every business day, check for failed accounting integrations, missing postings, duplicate transactions and stale bank feeds. Send only actionable exceptions.",
+  "keywords": [
+    "integration",
+    "sync",
+    "bank feed",
+    "stale",
+    "failed",
+    "event log",
+    "daily digest",
+    "QuickBooks",
+    "Stripe",
+    "Ramp",
+    "Plaid"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 * * 1-5",
+    "periodRule": "business_day",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "integrationsInScope",
+      "q": "Which integrations should be checked each day?",
+      "type": "list",
+      "scope": "recipe"
+    },
+    {
+      "key": "expectedSyncHours",
+      "q": "How many hours without a successful sync counts as stale?",
+      "type": "number",
+      "scope": "recipe",
+      "default": 24
+    },
+    {
+      "key": "recipients",
+      "q": "Who receives digests and alerts?",
+      "type": "list",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Integration status and event logs",
+      "periodRule": "business_day",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull each integration's connection status and event log for the day",
+    "run staleness against the expected sync hours",
+    "list failed events, missing postings and duplicate transactions with severity",
+    "write only actionable exceptions; an empty day says \"no exceptions\" and shows the last successful sync"
+  ],
+  "compute": [
+    "staleness"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the integration and the event id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "integration-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "integration-exceptions.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "integration-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The last successful sync per integration is shown; unavailable data is told apart from no exceptions"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "integration-exceptions.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r57-seed-co"
+  ]
+}

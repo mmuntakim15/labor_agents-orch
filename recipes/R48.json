@@ -1,0 +1,129 @@
+{
+  "id": "R48",
+  "version": 1,
+  "group": 5,
+  "title": "Plain-language customer contract summary",
+  "prompt": "Summarize the attached customer contract in plain language: what each side pays and when, term and renewal, termination rights, credits or discounts, and items to look into for revenue recognition.",
+  "keywords": [
+    "contract summary",
+    "plain language",
+    "payment terms",
+    "term",
+    "renewal",
+    "termination",
+    "discounts",
+    "credits",
+    "revenue recognition items"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": null,
+    "periodRule": "current_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "summaryPoints",
+      "q": "Which points should every contract summary cover beyond the standard ones (for example data protection, exclusivity, governing law)?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Customer contract",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "docx"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read every page of the contract",
+    "write the summary in plain language under fixed headings: who pays what and when, term and renewal, termination rights, credits or discounts, items to look into for revenue recognition, plus summaryPoints",
+    "quote the clause for each point; where the contract is silent, say so",
+    "write the summary pdf and the workbook of payment amounts and dates with the items to look into as exceptions"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The summary exists as a pdf",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "name": "contract-summary.pdf"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The memo cites the paragraphs it relies on, marks every citation \"verify\", draws no conclusion where facts are missing, and leaves the judgement with the accountant; it uses none of the words definitely, certainly or guaranteed",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "contract-summary.pdf",
+        "words": [
+          "definitely",
+          "certainly",
+          "guaranteed"
+        ]
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (an item to look into for revenue recognition) cites the contract clause",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "contract-summary.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "contract-summary.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "contract-summary.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Each heading is answered from the contract text with the clause quoted; where the contract is silent the summary says so"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "contract-summary.pdf",
+      "sheets": [
+        "Payments",
+        "Term and renewal",
+        "Termination",
+        "Credits and discounts",
+        "Items to look into"
+      ]
+    },
+    {
+      "name": "contract-summary.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r48-seed-co"
+  ]
+}

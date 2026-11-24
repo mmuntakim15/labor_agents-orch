@@ -11,13 +11,14 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test test/*.test.js test/compute/*.test.js",
     "test:unit": "node --test test/units.test.js test/transition.test.js test/dime.test.js",
     "test:e2e": "node --test test/orchestrator.e2e.test.js test/dashboard.test.js",
     "check": "node --check bin/lab && for f in src/*.js hooks/*.js tools/*.js agents/*/index.js dashboard/server.js dashboard/apiWorker.js dashboard/ui/app.js; do node --check $f || exit 1; done",
     "doctor": "node bin/lab doctor",
     "dashboard": "node bin/lab dashboard",
-    "map": "node bin/lab map"
+    "map": "node bin/lab map",
+    "test:compute": "node --test test/compute/*.test.js"
   },
   "dependencies": {},
   "comment": "Zero dependencies on purpose (same stance as dev-agents-orch and audit-agent). The Claude Code CLI on this machine is the model runtime, so the developer's Claude login is reused and no API key is needed. xlsx reading and writing, docx text, and the HTTP client are implemented on node built-ins."

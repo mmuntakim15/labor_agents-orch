@@ -1,0 +1,95 @@
+{
+  "id": "R58",
+  "version": 1,
+  "group": 7,
+  "title": "Weekly controller digest",
+  "prompt": "Each week, review overdue receivables, upcoming payments, cash availability and forecast changes. Highlight items requiring action.",
+  "keywords": [
+    "controller digest",
+    "overdue AR",
+    "receivables",
+    "upcoming payments",
+    "cash position",
+    "forecast",
+    "weekly summary"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "last_week",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "recipients",
+      "q": "Who receives digests and alerts?",
+      "type": "list",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Cash forecast workbook kept outside Dime",
+      "periodRule": "last_week",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the AR aging, upcoming bill payments, bank balances and the latest forecast",
+    "list overdue receivables, payments due within two weeks and cash shortfalls",
+    "compare the forecast with last week's and note the changes",
+    "write the digest with an as-of date and no repeated alerts"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the customer, bill or account id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "controller-digest.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "controller-digest.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "controller-digest.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every section shows its as-of date; items already reported last week are marked as repeats, not re-alerted"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "controller-digest.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r58-seed-co"
+  ]
+}

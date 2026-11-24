@@ -1,0 +1,135 @@
+{
+  "id": "R16",
+  "version": 1,
+  "group": 2,
+  "title": "Intercompany receivables and payables by entity pair, invoice and currency",
+  "prompt": "Reconcile intercompany receivables and payables by entity pair, invoice and currency, and explain differences before consolidation.",
+  "keywords": [
+    "intercompany",
+    "IC",
+    "entity pair",
+    "due to",
+    "due from",
+    "elimination",
+    "consolidation",
+    "matrix",
+    "currency",
+    "multi-entity"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "size": "L",
+  "setup": [
+    {
+      "key": "entityPairs",
+      "q": "Which entity pairs trade with each other (parent and subsidiary, subsidiary and subsidiary)?",
+      "type": "list",
+      "scope": "recipe"
+    },
+    {
+      "key": "icAccounts",
+      "q": "Which ledger accounts are intercompany receivable and payable in each entity?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "icFxPolicy",
+      "q": "How are intercompany balances in different currencies translated and where do translation differences go?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Intercompany matrix and reconciliation for the period",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "this is a size L parent: plan one child request per entity pair from the entityPairs setup; the parent delivers when every child is done",
+    "child: pull the intercompany matrix and both entities' IC account ledgers for the period",
+    "child: match by invoice reference, then by amount and date, in the transaction currency; translate under the stated FX policy only after matching",
+    "child: list differences by type: invoice on one side only, amount differs, currency or rate differs, timing (posted in different periods)",
+    "child: tie each side's IC balance to the matched invoices plus listed differences; propose an elimination entry only where both sides agree and the request asks for one",
+    "parent: assemble the pair results into one workbook; every pair appears even when it has no differences"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every entity in scope appears in the workbook",
+      "evaluator": "all_entities_covered",
+      "args": {
+        "file": "intercompany-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the entity pair, the invoice reference and each side's transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "intercompany-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "intercompany-reconciliation.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "intercompany-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Any proposed elimination entry balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-5",
+      "text": "Differences are listed per pair, invoice and currency with both sides quoted; translation differences are shown under the stated policy and never netted against invoice differences"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "journal_entry",
+      "route": "intercompany elimination journal entry",
+      "tierRules": [
+        {
+          "when": "an elimination entry for a matched pair where both sides agree and the request asks for eliminations (optional)",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "intercompany-reconciliation.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 15,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r16-seed-co"
+  ]
+}

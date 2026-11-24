@@ -1,0 +1,140 @@
+{
+  "id": "R54",
+  "version": 1,
+  "group": 6,
+  "title": "Intercompany differences from missing reciprocal postings with correcting entries",
+  "prompt": "Identify intercompany differences caused by missing reciprocal postings and propose correcting entries in the appropriate entities.",
+  "keywords": [
+    "intercompany",
+    "reciprocal",
+    "mismatch",
+    "IC matrix",
+    "due to",
+    "due from",
+    "elimination differences",
+    "correcting entries",
+    "multi-entity"
+  ],
+  "kind": "change_request",
+  "worker": "bookkeeper",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "size": "L",
+  "childrenBy": "entityPair",
+  "setup": [
+    {
+      "key": "entityPairs",
+      "q": "Which entity pairs transact with each other?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "icAccounts",
+      "q": "Which ledger accounts are intercompany receivable and payable in each entity?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "icFxPolicy",
+      "q": "How are intercompany balances in different currencies translated and where do translation differences go?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Intercompany balances matrix and reconciliation",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Intercompany journal groups and the IC account ledgers per entity",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "the parent runs one child per entity pair in entityPairs; read the period-lock state in both entities",
+    "pull the intercompany matrix and reconciliation, and each side's IC account ledger for the month",
+    "match postings across the pair by reference, date and amount (icFxPolicy for currency); a posting with no counterpart is a missing reciprocal",
+    "propose the correcting entry in the entity that lacks the posting (tier B), both legs shown, dated in the open period",
+    "write the workbook with the pair difference before and after the proposals"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every proposed correcting entry balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites both entities, the journal id found and the account id where the counterpart is missing",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "intercompany-differences.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "intercompany-differences.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "intercompany-differences.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every entity pair appears in the workbook",
+      "evaluator": "all_entities_covered",
+      "args": {
+        "file": "intercompany-differences.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "A difference that is not a missing reciprocal (timing, FX, a disputed amount) is listed and not corrected; a closed period in either entity turns the entry into a question"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "journal_entry",
+      "route": "POST /api/v1/transactions/accounting/businessId/:businessId/transactions",
+      "tierRules": [
+        {
+          "when": "the entry mirrors a posting found in the counterparty entity and the period is open",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "intercompany-differences.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 12,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r54-seed-co"
+  ]
+}

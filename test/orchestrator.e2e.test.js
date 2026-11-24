@@ -13,8 +13,8 @@ const PR = require('../src/proposals');
 const R = require('../src/receipts');
 
 let api; let restoreMap;
-test.before(async () => { api = await fakeDime(); restoreMap = writeTestMap().restore; });
-test.after(async () => { restoreMap(); await api.close(); delete process.env.FAKE_VERDICT; delete process.env.FAKE_INTAKE; });
+test.before(async () => { api = await fakeDime(); restoreMap = writeTestMap().restore; process.env.LAB_POLICY_DIR = require('path').join(process.env.LAB_RUNS_DIR, 'policy'); });
+test.after(async () => { restoreMap(); await api.close(); delete process.env.FAKE_VERDICT; delete process.env.FAKE_INTAKE; delete process.env.FAKE_INPUTS; });
 
 test('fast lane: a small report goes intake → execute → verify → deliver with no human touch, and leaves evidence', async () => {
   const r = T.createRequest({ title: 'Flux for the last two months', body: 'Create a flux for the last two months and produce the report', reporter: 'Mo', backend: 't' });
@@ -54,47 +54,110 @@ test('verify loop: a failing verdict sends the work back once, then passes; a co
   assert.match(fs.readFileSync(path.join(T.artifactsDir(r2.id), 'evidence.html'), 'utf8'), /overridden by Mo/);
 });
 
-test('writes: scope → Gate 1 → execute stages proposals → verify → Gate 2 decisions → Applier writes through Dime → verify → deliver', async () => {
+test('writes: scope → Gate 1 → execute stages proposals → verify → tier A applied under policy → Gate 2 for the rest → Applier → verify → deliver', async () => {
   const r = T.createRequest({ title: 'Set up vendors from W-9s', body: 'Here are two W-9s; set the vendors up', reporter: 'Mo', backend: 't' });
   let out = await O.run(r.id);
   assert.equal(out.status, 'awaiting_gate_1'); assert.equal(out.kind, 'data_task'); assert.equal(out.writes, true); assert.equal(out.worker, 'preparer');
+  assert.deepEqual(out.writeTiers, [{ kind: 'vendor', tier: 'A', autoApply: true, reason: 'desk default for vendor' }, { kind: 'journal_entry', tier: 'B', autoApply: false, reason: 'desk default for journal_entry' }], 'the plan\'s writes were decided under the entity policy (the tier-B write is what keeps Gate 1)');
   assert.throws(() => O.approve(r.id, 2, 'Mo'), /not at Gate 2/);
   O.reject(r.id, 1, 'Mo', 'also tie out the aging');
   out = await O.run(r.id);
   assert.equal(out.status, 'awaiting_gate_1'); assert.equal(out.gates[1].rejectedAt !== undefined, true);
+  const vendorsBefore = api.state.vendors.length;
   O.approve(r.id, 1, 'Mo', 'go');
   out = await O.run(r.id);
+  // RD-2: P-1 is tier A under policy → applied before Gate 2; P-2 (tier B) and P-3 (question) wait for Mo
   assert.equal(out.status, 'awaiting_gate_2');
-  assert.deepEqual(out.runs.map((x) => x.stage).slice(-3), ['scope', 'execute', 'verify']);
-  const ps = PR.load(r.id).items; assert.equal(ps.length, 3); assert.equal(ps[2].status, 'question');
-  const vendorsBefore = api.state.vendors.length;
-  O.decideProposal(r.id, 'P-1', 'Mo', { decision: 'approve' });
+  assert.deepEqual(out.runs.map((x) => x.stage).slice(-5), ['scope', 'execute', 'verify', 'apply', 'verify']);
+  let items = PR.load(r.id).items; assert.equal(items.length, 3); assert.equal(items[2].status, 'question');
+  assert.equal(items[0].status, 'applied'); assert.equal(items[0].reviewedBy, 'policy@v0'); assert.equal(items[0].appliedRef.by, 'policy@v0'); assert.equal(items[0].policyDecision.tier, 'A');
+  assert.equal(items[1].status, 'proposed', 'tier B waits for a person');
+  assert.equal(api.state.vendors.length - vendorsBefore, 1, 'only the tier-A vendor was created before Gate 2');
+  assert.equal(out.policyApply, null, 'the policy apply record is cleared once the second verify passes');
+  assert.equal(T.readJsonArtifact(r.id, 'applied.json').mode, 'policy');
+  assert.ok(T.listComments(r.id).some((c) => c.author === 'policy@v0' && /approved P-1/.test(c.body)), 'the policy approval is labelled, never a person\'s name');
+  assert.throws(() => O.decideProposal(r.id, 'P-1', 'Mo', { decision: 'approve' }), /already applied/);
   O.decideProposal(r.id, 'P-2', 'Mo', { decision: 'approve', amount: 1250 });
   O.decideProposal(r.id, 'P-3', 'Mo', { decision: 'answer', note: 'same vendor; skip' });
   O.approve(r.id, 2, 'Mo');
   out = await O.run(r.id);
   assert.equal(out.status, 'done');
-  assert.deepEqual(out.runs.map((x) => x.stage).slice(-4), ['apply', 'verify', 'deliver'].length === 3 ? ['verify', 'apply', 'verify', 'deliver'] : []);
-  assert.equal(api.state.vendors.length - vendorsBefore, 2, 'two approved vendors were created in Dime');
+  assert.deepEqual(out.runs.map((x) => x.stage).slice(-3), ['apply', 'verify', 'deliver']);
+  assert.equal(api.state.vendors.length - vendorsBefore, 2, 'two vendors were created in Dime in all');
   assert.equal(api.state.vendors[vendorsBefore + 1].openingBalance, 1250, 'the edited amount was sent, not the estimate');
   const applied = T.readJsonArtifact(r.id, 'applied.json');
-  assert.equal(applied.applied.length, 2); assert.equal(applied.failed, null);
-  const items = PR.load(r.id).items;
-  assert.equal(items[0].status, 'applied'); assert.equal(items[0].appliedRef.id, api.state.vendors[vendorsBefore]._id); assert.equal(items[0].appliedRef.by, 'Mo');
-  assert.ok(R.list(r.id).some((x) => x.proposal === 'P-1'), 'the apply left a receipt');
-  assert.equal(api.state.calls.filter((c) => c.method === 'POST' && c.path === '/api/v1/accountant/vendor').length, 2, 'nothing was written before Gate 2');
+  assert.equal(applied.mode, 'gate2'); assert.equal(applied.applied.length, 1); assert.equal(applied.failed, null);
+  items = PR.load(r.id).items;
+  assert.equal(items[0].appliedRef.id, api.state.vendors[vendorsBefore]._id);
+  assert.equal(items[1].status, 'applied'); assert.equal(items[1].appliedRef.by, 'Mo');
+  assert.ok(R.list(r.id).some((x) => x.proposal === 'P-1' && /policy@v0/.test(x.purpose)), 'the policy apply left a receipt that says so');
+  assert.equal(api.state.calls.filter((c) => c.method === 'POST' && c.path === '/api/v1/accountant/vendor').length, 2);
+  assert.equal(out.touches, 5, 'reject, approve, two proposal decisions, approve');
+  // the digest for today lists the policy apply as reversible, and the request's metrics count it
+  const DG = require('../src/digest');
+  const dg = DG.assemble('b1', undefined, { write: false });
+  const row = dg.applied.find((a) => a.request === r.id && a.proposal === 'P-1'); assert.ok(row); assert.equal(row.reversible, true); assert.equal(row.by, 'policy@v0');
+  assert.equal(DG.metricsOf(out).autoApplied, 1); assert.equal(DG.levelOf(out), 'L3', 'a person touched it');
+  // reverse the policy apply: the vendor is deactivated, never deleted; a knowledge note is written
+  const RV = require('../src/reverse');
+  const rv = await RV.reverse(r.id, 'P-1', 'Mo', 'duplicate of an existing vendor');
+  assert.equal(rv.proposal.status, 'reversed'); assert.equal(api.state.vendors[vendorsBefore].status, 'inactive'); assert.match(api.state.vendors[vendorsBefore].notes, /Reversed by Mo · duplicate of an existing vendor · REQ-\d+ · P-1/);
+  assert.equal(RV.notes(r.id)[0].kind, 'gotcha'); assert.equal(RV.notes(r.id)[0].body, 'duplicate of an existing vendor');
+  await assert.rejects(() => RV.reverse(r.id, 'P-1', 'Mo', 'again'), /already reversed/);
 });
 
 test('apply stops on the first failure with the product\'s words and blocks', async () => {
   const r = T.createRequest({ title: 'Set up vendors from W-9s again', body: 'W-9s', reporter: 'Mo', backend: 't' });
   await O.run(r.id); O.approve(r.id, 1, 'Mo'); await O.run(r.id);
-  api.state.failVendor = 'Acme Supply';
-  O.decideProposal(r.id, 'P-1', 'Mo', { decision: 'approve' }); O.decideProposal(r.id, 'P-2', 'Mo', { decision: 'approve' }); O.decideProposal(r.id, 'P-3', 'Mo', { decision: 'answer', note: 'n' });
+  assert.equal(PR.load(r.id).items[0].status, 'applied', 'P-1 (tier A) went in under policy');
+  api.state.failVendor = 'Beta Co';
+  O.decideProposal(r.id, 'P-2', 'Mo', { decision: 'approve' }); O.decideProposal(r.id, 'P-3', 'Mo', { decision: 'answer', note: 'n' });
   O.approve(r.id, 2, 'Mo');
   const out = await O.run(r.id);
   api.state.failVendor = null;
   assert.equal(out.status, 'blocked'); assert.match(out.blocked.reason, /Vendor already exists/);
-  const items = PR.load(r.id).items; assert.equal(items[0].status, 'failed'); assert.equal(items[1].status, 'approved', 'the second was not sent');
+  const items = PR.load(r.id).items; assert.equal(items[1].status, 'failed'); assert.equal(items[0].status, 'applied');
+});
+
+test('kill switch mid-apply (E-01): a policy-approved item whose kind no longer auto-applies is left pending, never posted', async () => {
+  const POL = require('../src/policy');
+  const r = T.createRequest({ title: 'Set up vendors from W-9s once more', body: 'W-9s', reporter: 'Mo', backend: 't' });
+  await O.run(r.id); O.approve(r.id, 1, 'Mo');
+  // verify passes and hands to apply with P-1 policy-approved; then the entity switches writes off before the Applier runs
+  let out = await O.run(r.id, { until: 'apply' });
+  assert.equal(out.status, 'apply'); assert.equal(PR.load(r.id).items[0].reviewedBy, 'policy@v0');
+  POL.set('b1', { writesEnabled: false }, 'Mo');
+  const vendors = api.state.vendors.length;
+  out = await O.run(r.id);
+  POL.set('b1', { writesEnabled: true }, 'Mo');
+  assert.equal(api.state.vendors.length, vendors, 'nothing was posted');
+  assert.equal(out.status, 'awaiting_gate_2', 'the request waits for a person with every proposal pending');
+  const p1 = PR.load(r.id).items[0]; assert.equal(p1.status, 'proposed'); assert.equal(p1.reviewedBy, null); assert.match(p1.policyDeferred.reason, /writes disabled/);
+  assert.equal(T.readJsonArtifact(r.id, 'applied.json').deferred.length, 1);
+  assert.ok(T.listComments(r.id).some((c) => /P-1 not posted/.test(c.body)));
+});
+
+test('awaiting_input: the worker names a document, a person supplies it, the stage resumes; a timeout resumes it with the input marked missing', async () => {
+  process.env.FAKE_INPUTS = JSON.stringify([{ name: 'October bank statement', period: '2026-10', why: 'the recon needs the closing balance', acceptedTypes: ['pdf', 'csv'] }]);
+  const r = T.createRequest({ title: 'Flux with statement', body: 'flux for the last two months', reporter: 'Mo', backend: 't' });
+  let out = await O.run(r.id);
+  assert.equal(out.status, 'awaiting_input'); assert.equal(out.inputsStage, 'execute'); assert.equal(out.inputsNeeded[0].name, 'October bank statement'); assert.equal(out.inputsNeeded[0].receivedAt, null);
+  assert.equal(O.runnable(out), false, 'nothing runs while a document is awaited');
+  assert.throws(() => O.provideInput(r.id, 'Mo', 'something else'), /not an input/);
+  out = O.provideInput(r.id, 'Mo', 'October bank statement', { attachments: ['stmt-oct.pdf'] });
+  assert.equal(out.status, 'execute'); assert.equal(out.inputsNeeded[0].receivedFrom, 'Mo'); assert.deepEqual(out.inputsNeeded[0].files, ['stmt-oct.pdf']); assert.equal(out.touches, 1);
+  out = await O.run(r.id);
+  assert.equal(out.status, 'done');
+  // timeout path
+  const r2 = T.createRequest({ title: 'Flux with statement 2', body: 'flux for the last two months', reporter: 'Mo', backend: 't' });
+  out = await O.run(r2.id); assert.equal(out.status, 'awaiting_input');
+  assert.deepEqual(O.expireInputs(), [], 'not yet');
+  const resumed = O.expireInputs({ now: Date.now() + 6 * 864e5 });
+  assert.deepEqual(resumed, [r2.id]);
+  out = T.loadRequest(r2.id); assert.equal(out.status, 'execute'); assert.equal(out.inputsNeeded[0].missing, true);
+  out = await O.run(r2.id); assert.equal(out.status, 'done');
+  delete process.env.FAKE_INPUTS;
+  const dg = require('../src/digest').assemble('b1', undefined, { write: false }); assert.ok(Array.isArray(dg.awaitingInput));
 });
 
 test('parent: size L splits into children at Gate 1; the parent delivers when they are done', async () => {

@@ -1,0 +1,138 @@
+{
+  "id": "R50",
+  "version": 1,
+  "group": 6,
+  "title": "Duplicate vendor records with recommended merges or mapping corrections",
+  "prompt": "Find duplicate vendor records and recommend merges or mapping corrections, with all affected transactions and open balances shown before changes.",
+  "keywords": [
+    "duplicate vendors",
+    "vendor master",
+    "merge",
+    "mapping",
+    "master data",
+    "cleanup",
+    "name similarity",
+    "open balances"
+  ],
+  "kind": "change_request",
+  "worker": "preparer",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "current_month",
+    "event": null,
+    "cadence": "monthly"
+  },
+  "setup": [
+    {
+      "key": "masterDataRules",
+      "q": "What makes two vendor records the same vendor (same tax ID, same bank details, same legal name) and which record survives?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "mergeApprover",
+      "q": "Who approves vendor master changes?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Vendor list with tax IDs and contact details",
+      "periodRule": "current_month",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Bills, payments and AP aging by vendor",
+      "periodRule": "current_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the vendor list and the open bills, payments and AP aging by vendor",
+    "run name_similarity over the vendor list; confirm pairs with masterDataRules (tax ID, bank details, legal name)",
+    "for each confirmed pair, list every affected transaction and the open balance of each record before any change",
+    "propose a vendor update (tier B) that marks the duplicate inactive and re-points its open bills to the surviving record; a merge or a delete is never proposed",
+    "write the workbook for mergeApprover"
+  ],
+  "compute": [
+    "name_similarity"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites both vendor ids and the evidence they are the same vendor",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "duplicate-vendors.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "duplicate-vendors.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "duplicate-vendors.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every proposal names a route the desk may call and no proposal deletes or merges a record",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-4",
+      "text": "Affected transactions and open balances are shown before any change; records are only marked inactive or re-pointed, never merged or deleted; the approver named in setup decides"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "vendor",
+      "route": "PUT /api/v1/accountant/vendor/:id",
+      "tierRules": [
+        {
+          "when": "marking the duplicate record inactive or correcting its mapping to the surviving record",
+          "tier": "B"
+        }
+      ]
+    },
+    {
+      "kind": "bill",
+      "route": "PUT /api/v1/transactions/accounting/bookkeeping/businessId/:businessId/updateInvoice/bulk",
+      "tierRules": [
+        {
+          "when": "re-pointing open bills from the duplicate to the surviving vendor",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "duplicate-vendors.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-pending",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r50-seed-co"
+  ]
+}

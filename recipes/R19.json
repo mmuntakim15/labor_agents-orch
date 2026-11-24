@@ -1,0 +1,169 @@
+{
+  "id": "R19",
+  "version": 1,
+  "group": 2,
+  "title": "Migrated ledger validation against the prior accounting system",
+  "prompt": "Validate a newly migrated ledger against the prior accounting system using trial balance, financial statements, open AR/AP and bank balances.",
+  "keywords": [
+    "migration",
+    "cutover",
+    "legacy system",
+    "conversion",
+    "opening balances",
+    "trial balance",
+    "prior system",
+    "QuickBooks export",
+    "account mapping",
+    "tie-out"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": null,
+    "periodRule": "last_closed_month",
+    "event": null,
+    "cadence": "on request"
+  },
+  "setup": [
+    {
+      "key": "accountMapping",
+      "q": "How do the prior system's accounts map to Dime's chart of accounts (a mapping table or the rule used)?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "cutoverDate",
+      "q": "What is the cutover date (the as-of date the migrated balances represent)?",
+      "type": "date",
+      "scope": "recipe"
+    },
+    {
+      "key": "tolerance",
+      "q": "What difference per account is accepted as rounding (0 means penny-exact)?",
+      "type": "number",
+      "scope": "recipe",
+      "default": 0
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Prior system trial balance as of the cutover date",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv",
+        "pdf"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Prior system balance sheet and profit and loss as of the cutover date",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Prior system open AR and AP agings as of the cutover date",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv",
+        "pdf"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Prior system bank balances or bank reconciliations as of the cutover date",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv",
+        "pdf"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "run column_map over the legacy trial balance and agings (headers never positions) and save the mapping to data/legacy-tb-columns.json",
+    "apply the account mapping; list legacy accounts with no Dime account and Dime accounts with no legacy source",
+    "pull Dime's trial balance as of the cutover date, the balance sheet and profit and loss, the AR and AP agings and the bank account balances",
+    "compare account by account, customer by customer, vendor by vendor and bank account by bank account; a difference above the tolerance is an exception with both figures",
+    "tie: legacy total debits and credits equal Dime's, and each subledger total equals its control account"
+  ],
+  "compute": [
+    "column_map"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The Dime trial balance total on the Tie-out equals Dime's own trial balance as of the cutover date",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "trial_balance",
+        "asOf": "{{setup.cutoverDate}}",
+        "name": "migration-validation.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The legacy trial balance and aging columns were mapped by header with no ambiguous or missing required column",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "legacy-tb-columns.json"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the legacy account or record and the Dime account or record id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "migration-validation.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "migration-validation.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "migration-validation.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Every difference above the tolerance is listed per account with the legacy and Dime figures; unmapped accounts on either side are their own exceptions and nothing is netted across accounts"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "migration-validation.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 15,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r19-seed-co"
+  ]
+}

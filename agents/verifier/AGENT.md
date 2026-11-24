@@ -7,7 +7,7 @@ and give a verdict the orchestrator can act on.
 
 ## Inputs
 - The request and its definition of done; checks.json (what the code decided); work.md, proposals.json, applied.json (the worker's claims).
-- Read-only tools: the HTTP tool (reads only), files, map, check. A fresh session: you did not do the work and owe it nothing.
+- Read-only tools: the HTTP tool (reads only), files, map, check, compute, and `sandbox.js rerun` (replay a worker's program by sha; never `run` a new one). A fresh session: you did not do the work and owe it nothing.
 
 ## Outputs
 - `verify.json` with a verdict and one entry per done item.

@@ -1,0 +1,97 @@
+{
+  "id": "R17",
+  "version": 1,
+  "group": 2,
+  "title": "Customer contract terms and billing schedules versus invoices and payments",
+  "prompt": "Compare customer contract terms and billing schedules to actual invoices and payments. Identify missing, duplicate or incorrectly timed billings.",
+  "keywords": [
+    "customer contracts",
+    "billing schedule",
+    "invoicing",
+    "missed billing",
+    "duplicate invoice",
+    "billing timing",
+    "revenue contracts",
+    "subscriptions",
+    "milestones"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null,
+    "cadence": "monthly"
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Customer contracts and billing schedules",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false,
+      "acceptedTypes": [
+        "pdf",
+        "xlsx"
+      ]
+    }
+  ],
+  "steps": [
+    "read the contracts and billing schedules: Dime's contracts first, then a document request for contracts kept outside Dime",
+    "pull the period's invoices and payments by customer",
+    "run schedule_vs_actual: each scheduled billing against the invoices raised, by customer, amount and expected date",
+    "list missing billings, duplicate invoices for one schedule line and invoices raised outside the schedule window; match payments to invoices and list unapplied payments",
+    "write the workbook with the contract line and invoice id on every exception"
+  ],
+  "compute": [
+    "schedule_vs_actual"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the customer id, the contract line and the invoice id where one exists",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "contract-billing-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "contract-billing-exceptions.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "contract-billing-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Missing, duplicate and incorrectly timed billings are separate exception types; usage-based and milestone billings are judged against their trigger, not a calendar date"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "contract-billing-exceptions.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r17-seed-co"
+  ]
+}

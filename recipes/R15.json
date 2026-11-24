@@ -1,0 +1,115 @@
+{
+  "id": "R15",
+  "version": 1,
+  "group": 2,
+  "title": "Balance in the AP foreign-exchange account: realized, unrealized or unexplained",
+  "prompt": "Investigate the balance in the AP foreign-exchange account. Trace the underlying transactions and determine whether differences are realized, unrealized or unexplained.",
+  "keywords": [
+    "foreign exchange",
+    "FX",
+    "currency",
+    "realized gain",
+    "unrealized gain",
+    "revaluation",
+    "AP revaluation",
+    "exchange difference",
+    "rate source"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "fxAccounts",
+      "q": "Which ledger accounts hold foreign-exchange gains and losses (realized and unrealized) for payables?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "rateSource",
+      "q": "Which exchange-rate source and rate date does the entity use for bills, payments and month-end revaluation?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "FX gains and losses report and revaluation runs for the period",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the single-account ledger for each FX account for the period and the FX gains-and-losses report and revaluation runs from Dime",
+    "trace each posting to its source: a bill paid at a different rate (realized), a month-end revaluation of an open bill (unrealized), or neither",
+    "recompute the realized difference for each traced payment from the bill rate and the payment rate stated on the records; quote both rates",
+    "classify every posting as realized, unrealized or unexplained; unexplained items are listed one by one with what was looked for",
+    "tie the three classes to the account balance at period end"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Realized plus unrealized plus unexplained on the Tie-out equals the FX account balance in Dime's general ledger at the period end",
+      "evaluator": "ties_to_gl_account",
+      "args": {
+        "account": "{{setup.fxAccounts}}",
+        "startDate": "{{period.start}}",
+        "endDate": "{{period.end}}",
+        "name": "ap-fx-account-analysis.xlsx"
+      },
+      "expect": {
+        "figure": "endingBalance"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the ledger transaction id and the bill, payment or revaluation run it traces to",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "ap-fx-account-analysis.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "ap-fx-account-analysis.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "ap-fx-account-analysis.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every posting sits in exactly one class; unexplained items are listed individually with the bill or payment looked for; any change of treatment is raised as a question for the approver, never proposed as an entry"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "ap-fx-account-analysis.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r15-seed-co"
+  ]
+}

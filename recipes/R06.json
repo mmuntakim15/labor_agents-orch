@@ -1,0 +1,101 @@
+{
+  "id": "R06",
+  "version": 1,
+  "group": 1,
+  "title": "Invoices whose service period differs from the invoice month",
+  "prompt": "Which customer invoices have service periods that differ from the invoice month, and what amounts relate to each service month?",
+  "keywords": [
+    "service period",
+    "deferred revenue",
+    "revenue recognition",
+    "invoice date",
+    "billing schedule",
+    "cut-off"
+  ],
+  "kind": "question",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Customer invoices or billing schedules not attached in Dime",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the month's customer invoices with service dates and line items",
+    "split each invoice amount across the service months it covers",
+    "list invoices whose service period is outside the invoice month",
+    "tie the invoice total to the month's revenue"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the invoice id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "invoice-service-periods.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "invoice-service-periods.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "invoice-service-periods.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The number of invoices flagged is plausible for this entity (advisory)",
+      "evaluator": "figure_in_range",
+      "args": {
+        "sheet": "Exceptions",
+        "name": "invoice-service-periods.xlsx"
+      },
+      "expect": {
+        "max": 500
+      },
+      "advisory": true
+    },
+    {
+      "id": "D-4",
+      "text": "Invoice dates are never treated as recognition dates; the breakdown shows the amount per service month"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "invoice-service-periods.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r06-seed-co"
+  ]
+}

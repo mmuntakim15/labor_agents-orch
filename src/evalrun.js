@@ -24,6 +24,8 @@ async function evaluate({ cases = [], dryRun = false, repeat = 1, model = null, 
     }
     const ok = results.filter((r) => r.pass).length;
     if (ok === results.length) passed += 1; else failed += 1;
+    // one report per case under evals/reports/ (a dry run proves nothing and is not recorded); `lab recipes promote` reads a candidate's
+    if (!dryRun) { try { require('./recipes').recordEvalReport(name, { pass: ok === results.length, passed: ok, runs: results.length, failures: results.flatMap((r) => r.failures || []) }); } catch (e) { log(`  (eval report not written: ${e.message})`); } }
     log(`${ok === results.length ? '✔' : '✖'} ${name}: ${ok}/${results.length} pass${results.some((r) => r.dry) ? ' (dry run)' : ''}`);
     for (const r of results) for (const f of r.failures) log(`    - ${f}`);
   }

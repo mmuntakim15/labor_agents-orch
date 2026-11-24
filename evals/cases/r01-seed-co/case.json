@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Balance sheet accounts without a reconciliation or supporting schedule",
+    "body": "Which balance sheet accounts have balances but no reconciliation or supporting schedule for the last closed month? Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "question",
+      "worker": "investigator",
+      "writes": false,
+      "recipeId": "R01"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R01 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"Uncategorised bank transactions (assumed recipe title)\",\"assumed\":true,\"exceptions\":[{\"date\":\"2026-11-07\",\"name\":\"ZELLE PAYMENT J MARTINEZ\",\"amount\":\"640.00\"},{\"date\":\"2026-11-12\",\"name\":\"AMZN Mktp US*2K4\",\"amount\":\"212.37\"}],\"count\":2}"
+  }
+}

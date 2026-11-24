@@ -39,9 +39,14 @@ process.stdin.on('end', async () => {
     const isL = /Size: L/.test(input);
     const plan = isL
       ? { size: 'L', writes: false, worker: 'analyst', calls: [], inputs: [], writes: [], steps: ['split by entity'], estimateUsd: 12, children: [{ title: 'AR over 60 for Acme Dental', body: 'child one', kind: 'report', subject: { businessIds: ['b1'], businessNames: ['Acme Dental'] } }, { title: 'AR over 60 for Beta LLC', body: 'child two', kind: 'report', subject: { businessIds: ['b2'], businessNames: ['Beta LLC'] } }] }
-      : { size: 'M', writes: true, worker: 'preparer', done: [{ id: 'D-1', text: 'one vendor proposed per W-9', evaluator: 'proposals_balanced' }, { id: 'D-2', text: 'tie-out lists every row' }], calls: [{ method: 'GET', path: '/api/v1/accountant/reports/ap-aging/b1', purpose: 'AP aging' }], inputs: ['w9s.pdf'], writes: [{ kind: 'vendor', tier: 'A', summary: 'create vendor from W-9', count: 2 }], steps: ['parse', 'propose', 'tie out'], estimateUsd: 9 };
+      : { size: 'M', writes: true, worker: 'preparer', done: [{ id: 'D-1', text: 'one vendor proposed per W-9', evaluator: 'proposals_balanced' }, { id: 'D-2', text: 'tie-out lists every row' }], calls: [{ method: 'GET', path: '/api/v1/accountant/reports/ap-aging/b1', purpose: 'AP aging' }], inputs: ['w9s.pdf'], writes: [{ kind: 'vendor', tier: 'A', summary: 'create vendor from W-9', count: 2 }, { kind: 'journal_entry', tier: 'B', summary: 'AP aging difference adjustment', count: 1 }], steps: ['parse', 'propose', 'tie out'], estimateUsd: 9 };
     write('plan.json', plan); write('scope.md', '# Scope\n\nEstimate $9. Assumptions: quarter end.\n');
     result = { status: 'ok', summary: 'Scope written.', size: plan.size, writes: plan.writes.length > 0 };
+  } else if (/Analyst|Investigator/.test(job) && process.env.FAKE_INPUTS && !fs.existsSync(path.join(dir, '.fake-asked-input')) && !/Attached: |attachments\//.test(input)) {
+    // RD-2: the worker names a document only a person can supply, once; the next run (with the file attached, or the input marked missing) proceeds
+    fs.writeFileSync(path.join(dir, '.fake-asked-input'), '1');
+    write('work.md', '# Work\n\nThe bank statement for October is not in Dime or on the request; asked for it.\n');
+    result = { status: 'needs_input', summary: 'Need the October bank statement.', inputs: JSON.parse(process.env.FAKE_INPUTS) };
   } else if (/Analyst|Investigator/.test(job)) {
     write('data/pl-2026-09.json', { metrics: { netIncome: 12418.22 }, rows: [{ account: 'Rent', amount: 4500 }, { account: 'Payroll', amount: 41006.18 }] });
     write('deliverables/report.xlsx', X.writeXlsx([{ name: 'P&L', header: ['Account', 'Sep 2026'], rows: [['Rent', 4500], ['Payroll', 41006.18], ['Net income', 12418.22]] }]));

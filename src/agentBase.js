@@ -15,11 +15,13 @@ const tool = (n) => `Bash(node ${path.join(TOOLS, `${n}.js`)}:*)`;
  * @param {object} o  readOnly: no export, no propose (Verifier); canWrite: may propose (workers on a writes request)
  */
 function base(ctx, { readOnly = false, canWrite = false, canExport = true } = {}) {
-  const allowed = ['Read', 'Glob', 'Grep', 'Write', 'Edit', tool('map'), tool('dime'), tool('files'), tool('check')];
+  // compute.js is pure and reads only the request's files (it writes only data/<out>.json), so every role may run it, the Verifier included
+  // sandbox.js runs a pure program over the request's files (writes only programs/<sha>.js and data/<out>.json); read-only roles get `rerun` only
+  const allowed = ['Read', 'Glob', 'Grep', 'Write', 'Edit', tool('map'), tool('dime'), tool('files'), tool('check'), tool('compute'), tool('sandbox')];
   if (!readOnly && canExport) allowed.push(tool('export'));
   const forbidden = [];
   if (readOnly || !canWrite) forbidden.push('dime\\.js\\s+propose\\b');
-  if (readOnly) forbidden.push('export\\.js\\b');
+  if (readOnly) forbidden.push('export\\.js\\b', 'sandbox\\.js\\s+run\\b');
   const writeDeny = readOnly ? ['/deliverables/', '/data/', '/work\\.md$', '/plan\\.json$', '/proposals\\.json$'] : ['/proposals\\.json$', '/checks\\.json$', '/verify\\.json$', '/evidence\\.(json|html)$', '/applied\\.json$'];
   return {
     cwd: ctx.artifactsDir,

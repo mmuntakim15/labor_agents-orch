@@ -1,0 +1,23 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Customers holding a prepayment and open AR, RD-2 Seed Co",
+    "body": "Which customers held an unapplied prepayment or credit at 30 November 2026 and also had an open invoice on the same date? List each customer with both amounts and the invoice numbers. Entity: RD-2 Seed Co.",
+    "backend": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "json": {
+      "kind": "question",
+      "worker": "investigator"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxGuardDenials": 0
+  },
+  "comment": "Frozen from REQ-13 when candidate cand-customers-holding-a-prepayment-and-open was compiled."
+}

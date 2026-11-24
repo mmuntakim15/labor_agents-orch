@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Compliance deadlines and open requests tracker",
+    "body": "Monitor upcoming compliance deadlines and open close or audit requests. Summarize overdue items and missing evidence each week. Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "report",
+      "worker": "analyst",
+      "writes": false,
+      "recipeId": "R60"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R60 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: none"
+  }
+}

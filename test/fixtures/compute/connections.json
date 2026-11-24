@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": [
+    { "name": "Plaid", "descriptions": "Connect your bank account via Plaid.", "type": "BANK", "status": "Connected",
+      "details": { "connected": true, "status": "Connected", "last_synced_at": "2026-11-23T06:00:00.000Z", "institutions": [{ "name": "Chase", "item_id": "it1" }] } },
+    { "name": "Ramp", "descriptions": "Connect your Ramp account.", "type": "AP", "status": "Sync Error",
+      "details": { "connected": true, "status": "Sync Error", "last_synced_at": "2026-11-20T18:00:00.000Z", "failed_events_24h": 3 } },
+    { "name": "Stripe", "descriptions": "Connect your Stripe account.", "type": "AR", "status": "Connected",
+      "details": { "connected": true, "status": "Connected", "last_synced_at": "2026-11-17T18:00:00.000Z" } },
+    { "name": "QuickBooks Online", "descriptions": "Sync chart of accounts from QuickBooks.", "type": "GL", "status": "Connected",
+      "details": { "connected": true, "status": "Connected", "last_synced_at": null, "connection": { "realm_id": "123" } } },
+    { "name": "HubSpot", "descriptions": "Link your HubSpot account.", "type": "CRM", "status": "Available",
+      "details": { "connected": false, "status": "Available" } },
+    { "name": "Square", "descriptions": "Integrate your Square account.", "type": "AR", "status": "Available",
+      "details": { "error": "timeout talking to Square" } }
+  ]
+}

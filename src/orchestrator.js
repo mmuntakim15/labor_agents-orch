@@ -18,8 +18,14 @@ const DN = require('./done');
 const PR = require('./proposals');
 const R = require('./receipts');
 const EVD = require('./evidence');
+const RC = require('./recipes');
+const POL = require('./policy');
 
 const ROOT = path.join(__dirname, '..');
+const RECIPE_MATCH_MIN = 0.8;
+const RECIPE_MATCH_CLEAR = 0.6; // adopt below MIN only as a clear winner (see adoptable())
+// RD-2 blocked-reason vocabulary: what the desk could not do. The reason string starts with the word.
+const GAPS = ['read', 'compute', 'change', 'prove', 'input'];
 const pipeline = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'pipeline.json'), 'utf8'));
 const AGENT_CFG = JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'agents.json'), 'utf8'));
 
@@ -49,13 +55,33 @@ function loopLimit(req, kind) { return (pipeline.loops[kind] || 0) + ((req.loopG
 function spent(req) { return (req.runs || []).reduce((s, r) => s + (r.costUsd || 0), 0); }
 function workerFor(req) { return (req.worker && WORKERS.includes(req.worker) ? req.worker : null) || pipeline.workers[req.kind] || 'analyst'; }
 
-/** Pure: does this request take the fast lane (no Scope, no Gate 1)? */
+/**
+ * Pure: does this request take the fast lane (no Scope, no Gate 1)? Size S, no open questions, and either a read-only
+ * request of a fast-lane kind, or (RD-2) a request whose every planned write decides to tier A under the entity policy.
+ * The decisions ride on the request as writeTiers = [{kind, tier, autoApply}], computed at intake from the recipe's
+ * writes or at scope from plan.writes; a writes request with no decision recorded is never fast.
+ */
 function isFast(req) {
   const fl = pipeline.fastLane; if (!fl || req.fastLane === false) return false;
-  if (req.writes) return false;
   if (!(fl.sizes || []).includes(req.size)) return false;
-  if (!(fl.kinds || []).includes(req.kind)) return false;
-  return !(req.pendingQuestions || []).length;
+  if ((req.pendingQuestions || []).length) return false;
+  if (!req.writes) return (fl.kinds || []).includes(req.kind);
+  const tiers = req.writeTiers;
+  return Array.isArray(tiers) && tiers.length > 0 && tiers.every((t) => t && t.tier === 'A' && t.autoApply !== false);
+}
+
+/** Pure: the inputs a Planner or worker asked a person for, normalised. */
+function normalizeInputs(inputs, stage) {
+  const at = new Date().toISOString();
+  return (inputs || []).filter((i) => i && (i.name || typeof i === 'string')).slice(0, 6).map((i) => (typeof i === 'string' ? { name: i } : i)).map((i) => ({ name: String(i.name).slice(0, 120), period: i.period || null, why: i.why || null, acceptedTypes: Array.isArray(i.acceptedTypes) ? i.acceptedTypes : [], source: i.source || 'document', standing: Boolean(i.standing), fromClient: Boolean(i.fromClient), askedAt: at, askedBy: stage, receivedAt: null, missing: false }));
+}
+const pendingInputs = (req) => (req.inputsNeeded || []).filter((i) => i && !i.receivedAt && !i.missing);
+
+/** Pure: the reason and gap word for a blocked or failed agent result. */
+function blockedReason(r) {
+  const gap = GAPS.includes(r.gap) ? r.gap : null;
+  const text = r.detail || r.summary || r.status;
+  return { gap, reason: gap ? `${gap}: ${text}` : text };
 }
 
 /** Pure: given a result from intake, the classification patch. */
@@ -66,39 +92,61 @@ function classify(req, r) {
   const worker = WORKERS.includes(r.worker) ? r.worker : pipeline.workers[kind] || 'analyst';
   const subject = { ...(req.subject || {}), ...(r.subject && typeof r.subject === 'object' ? r.subject : {}) };
   const done = Array.isArray(r.done) && r.done.length ? PL.normalizeDone(r.done) : (req.done || []);
-  return { kind, size, writes, worker, subject, done };
+  // a library recipe (Rnn) or a learned candidate (cand-<slug>, FR-37); anything else is dropped
+  const recipe = /^(R\d{2}|cand-[a-z0-9-]+)$/.test(String(r.recipeId || '')) ? { recipeId: r.recipeId, recipeVersion: Number.isInteger(r.recipeVersion) ? r.recipeVersion : (req.recipeVersion ?? null) } : {};
+  return { kind, size, writes, worker, subject, done, ...recipe };
 }
 
 // ---------------------------------------------------------------- transitions (pure)
 function transition(req, stage, agentName, result, extras = {}) {
   const r = result || {};
   const key = `${stage}/${agentName}`;
-  if (r.status === 'blocked' || r.status === 'fail') return { status: 'blocked', stop: true, reason: r.summary || r.status, patch: {} };
+  if (r.status === 'blocked' || r.status === 'fail') { const b = blockedReason(r); return { status: 'blocked', stop: true, reason: b.reason, gap: b.gap, patch: {} }; }
+  const policy = extras.policy || null;
 
   switch (key) {
     case 'intake/intake': {
       const c = classify(req, r);
       if (r.status === 'needs_input') return { status: 'intake', stop: true, reason: 'questions for the requester', patch: { ...c, pendingQuestions: (r.questions || []).slice(0, 3) } };
+      // RD-2: the recipe's write kinds decided under the entity policy; all tier A → the fast lane applies even with writes
+      const recipeWrites = extras.recipe && Array.isArray(extras.recipe.writes) ? extras.recipe.writes : [];
+      if (c.writes && recipeWrites.length) c.writeTiers = POL.writeTiers(recipeWrites, { policy, recipe: extras.recipe, businessId: POL.businessOf({ ...req, ...c }) });
       const next = { ...req, ...c, pendingQuestions: [] };
       if (c.size === 'L') return { status: 'scope', stop: false, reason: 'size L: the Planner splits it into child requests', patch: { ...c, pendingQuestions: [], scoped: true } };
-      if (isFast(next)) return { status: 'execute', stop: false, reason: 'fast lane: small read-only request, no scope needed', patch: { ...c, pendingQuestions: [], scoped: false } };
-      return { status: 'scope', stop: false, reason: `scope needed (${c.writes ? 'writes expected' : `size ${c.size}`})`, patch: { ...c, pendingQuestions: [], scoped: true } };
+      if (isFast(next)) return { status: 'execute', stop: false, reason: c.writes ? `fast lane: every planned write (${c.writeTiers.map((t) => t.kind).join(', ')}) is tier A under policy v${policy ? policy.version : 0}` : 'fast lane: small read-only request, no scope needed', patch: { ...c, pendingQuestions: [], scoped: false } };
+      return { status: 'scope', stop: false, reason: `scope needed (${c.writes ? `writes expected${c.writeTiers && c.writeTiers.length ? `: ${c.writeTiers.map((t) => `${t.kind} ${t.tier}`).join(', ')}` : ''}` : `size ${c.size}`})`, patch: { ...c, pendingQuestions: [], scoped: true } };
     }
     case 'scope/planner': {
+      if (r.status === 'needs_input' && Array.isArray(r.inputs) && r.inputs.length) { const inputsNeeded = normalizeInputs(r.inputs, 'scope'); return { status: 'awaiting_input', stop: true, reason: `input: ${inputsNeeded.map((i) => i.name).join(', ')} needed from a person`, patch: { pendingQuestions: [], inputsNeeded, inputsStage: 'scope' } }; }
       if (r.status === 'needs_input') return { status: 'scope', stop: true, reason: 'questions for the requester', patch: { pendingQuestions: (r.questions || []).slice(0, 3) } };
       if (!extras.plan) return { status: 'blocked', stop: true, reason: extras.planError || 'plan.json missing', patch: {} };
       const p = extras.plan;
+      const missing = Array.isArray(p.inputsNeeded) ? p.inputsNeeded.filter((i) => i && (i.name || typeof i === 'string') && !i.standing && !i.resolved) : [];
+      if (missing.length) { const inputsNeeded = normalizeInputs(missing, 'scope'); return { status: 'awaiting_input', stop: true, reason: `input: ${inputsNeeded.map((i) => i.name).join(', ')} needed from a person (named in plan.json)`, patch: { pendingQuestions: [], inputsNeeded, inputsStage: 'scope' } }; }
       const patch = { pendingQuestions: [], scoped: true, gates: { ...req.gates, 1: { ...req.gates[1], approved: false, rejectedAt: null } } };
       if (p.size) patch.size = p.size;
       if (Array.isArray(p.done) && p.done.length) patch.done = PL.normalizeDone(p.done);
       if (p.worker) patch.worker = p.worker;
       patch.writes = Boolean(req.writes) || (Array.isArray(p.writes) && p.writes.length > 0) || Boolean(p.writesExpected);
+      if (Array.isArray(p.writes) && p.writes.length) patch.writeTiers = POL.writeTiers(p.writes, { policy, recipe: extras.recipe || null, businessId: POL.businessOf(req) });
       if (Array.isArray(p.children) && p.children.length) patch.children = p.children.map((c) => ({ title: c.title, body: c.body || '', kind: c.kind || req.kind, subject: c.subject || null, done: c.done || null, requestId: null }));
       if (p.estimateUsd) patch.estimateUsd = Number(p.estimateUsd);
+      // Gates from policy, not from kind (FR-18): a scoped request whose every planned write decides to tier A under the
+      // entity policy, with no children, no questions and a size under L, needs no Gate 1. Tier-A proposals are then applied
+      // by policy after Verify; tier B or C appearing later still stops at Gate 2.
+      const allTierA = Array.isArray(patch.writeTiers) && patch.writeTiers.length > 0 && patch.writeTiers.every((t) => t.tier === 'A' && t.autoApply !== false);
+      const sizeNow = patch.size || req.size;
+      if (allTierA && !patch.children && sizeNow !== 'L' && !(Array.isArray(p.questions) && p.questions.length)) {
+        // the scope is approved by policy, labelled as such (the gate record says who, as it does for a person)
+        const label = `policy@v${extras.policy && extras.policy.version != null ? extras.policy.version : 0}`;
+        patch.gates = { ...patch.gates, 1: { ...patch.gates[1], approved: true, by: label, at: new Date().toISOString(), note: `every planned write is tier A (${patch.writeTiers.map((t) => t.kind).join(', ')})`, rejectedAt: null } };
+        return { status: 'execute', stop: false, reason: `no Gate 1: every planned write (${patch.writeTiers.map((t) => t.kind).join(', ')}) is tier A under policy (${label})`, patch };
+      }
       return { status: 'awaiting_gate_1', stop: true, reason: patch.children ? `ready for Gate 1 with ${patch.children.length} child request(s)` : 'ready for Gate 1', patch };
     }
     case `execute/${agentName}`: {
       if (!WORKERS.includes(agentName)) return { status: 'blocked', stop: true, reason: `no transition rule for ${key}`, patch: {} };
+      if (r.status === 'needs_input' && Array.isArray(r.inputs) && r.inputs.length) { const inputsNeeded = normalizeInputs(r.inputs, 'execute'); return { status: 'awaiting_input', stop: true, reason: `input: ${inputsNeeded.map((i) => i.name).join(', ')} needed from a person`, patch: { pendingQuestions: [], inputsNeeded, inputsStage: 'execute' } }; }
       if (r.status === 'needs_input') return { status: 'execute', stop: true, reason: 'questions for the requester', patch: { pendingQuestions: (r.questions || []).slice(0, 3) } };
       return { status: 'verify', stop: false, patch: { pendingQuestions: [], sendBackNote: null } };
     }
@@ -106,8 +154,12 @@ function transition(req, stage, agentName, result, extras = {}) {
       const v = extras.verdict;
       if (v === 'pass') {
         const pending = extras.proposals ? extras.proposals.pending : 0;
-        if (pending > 0 && !req.proposalsApplied) return { status: 'awaiting_gate_2', stop: true, reason: `verified; ${pending} proposal(s) wait for approval at Gate 2`, patch: {} };
-        return { status: 'deliver', stop: false, reason: 'verified', patch: {} };
+        // RD-2: tier-A proposals the policy decided apply first, before any gate; a person's gate comes after, for what remains.
+        // Bounded: applied items are no longer pending, so the second pass finds no tier A and moves on.
+        const tierA = (extras.tierA || []).filter((t) => t && t.autoApply);
+        if (tierA.length && !req.gates[2].approved) return { status: 'apply', stop: false, reason: `verified; ${tierA.length} tier-A change(s) apply under policy v${tierA[0].policyVersion} before any gate`, patch: { policyApply: { at: new Date().toISOString(), version: tierA[0].policyVersion, items: tierA.map((t) => ({ id: t.id, kind: t.kind, reason: t.reason })) } } };
+        if (pending > 0 && !req.gates[2].approved) return { status: 'awaiting_gate_2', stop: true, reason: `verified; ${pending} proposal(s) wait for approval at Gate 2`, patch: { policyApply: null } };
+        return { status: 'deliver', stop: false, reason: 'verified', patch: { policyApply: null } };
       }
       if (v === 'fail') {
         const n = (req.loops.verify || 0) + 1; const loops = { ...req.loops, verify: n };
@@ -138,7 +190,8 @@ function agentsForStage(req, stage) {
 
 function assertPreconditions(req, stage, agentName) {
   if (stage === 'execute' && req.scoped && !req.gates[1].approved) throw new Error('Gate 1 is not approved; nothing runs before the scope is approved');
-  if (stage === 'apply' && !req.gates[2].approved) throw new Error('Gate 2 is not approved; nothing is written before change approval');
+  // apply runs after a person approved Gate 2, or (RD-2) for the tier-A items the policy approved at verify; the Applier itself sends nothing else
+  if (stage === 'apply' && !req.gates[2].approved && !(req.policyApply && Array.isArray(req.policyApply.items) && req.policyApply.items.length)) throw new Error('Gate 2 is not approved; nothing is written before change approval');
   if (!agents[agentName]) throw new Error(`unknown agent ${agentName}`);
   const cap = budgetFor(req);
   if (spent(req) >= cap) throw Object.assign(new Error(`request budget exhausted ($${spent(req).toFixed(2)} of $${cap}); raise this request's budget or cancel it`), { code: 'BUDGET' });
@@ -161,12 +214,47 @@ async function buildCtx(req, stage, agentName) {
   }
   for (const d of ['data', 'deliverables']) fs.mkdirSync(path.join(artifactsDir, d), { recursive: true });
   const lastSameAgent = (req.runs || []).filter((r) => r.agent === agentName && r.stage === stage && r.sessionId).slice(-1)[0];
-  return { request: req, stage, agentName, artifacts: T.listArtifacts(req.id), artifactsDir, comments, plan, backend, pipeline, proposals: PR.summary(req.id), receipts: R.stats(R.list(req.id)), resumeSessionId: lastSameAgent ? lastSameAgent.sessionId : null, fast: isFast(req) };
+  const { recipe, recipeMatch } = recipeFor(req, stage === 'intake' && agentName === 'intake');
+  return { request: req, stage, agentName, artifacts: T.listArtifacts(req.id), artifactsDir, comments, plan, backend, pipeline, proposals: PR.summary(req.id), receipts: R.stats(R.list(req.id)), resumeSessionId: lastSameAgent ? lastSameAgent.sessionId : null, fast: isFast(req), recipe, recipeMatch, setup: req.setup || null };
+}
+
+/**
+ * The recipe a request follows: the one named on it (recipeId, set when it was started from the Library or by intake),
+ * else, before the intake run only, the library match when it scores at least RECIPE_MATCH_MIN. The match is kept on the
+ * request (recipeMatch = { id, score, candidates }) so a person can see why intake adopted it. Never throws.
+ */
+/**
+ * Pure: is the library match good enough to adopt without a person? Either the score clears RECIPE_MATCH_MIN, or it is
+ * a clear winner (at least RECIPE_MATCH_CLEAR and 1.5x the runner-up): a request that names an entity, a period or a
+ * person on top of a library prompt scores lower on coverage but has no real rival. Intake still confirms in words.
+ */
+function adoptable(m) {
+  if (!m || !m.id || !(m.score > 0)) return false;
+  if (m.score >= RECIPE_MATCH_MIN) return true;
+  const second = (m.candidates || []).filter((c) => c.id !== m.id).map((c) => c.score).sort((a, b) => b - a)[0] || 0;
+  return m.score >= RECIPE_MATCH_CLEAR && m.score >= 1.5 * second;
+}
+
+function recipeFor(req, matchNow = false) {
+  let recipe = null; let recipeMatch = req.recipeMatch || null;
+  if (matchNow && !req.recipeId) {
+    try {
+      const top = RC.match(`${req.title || ''}\n${req.body || ''}`, { limit: 3 });
+      recipeMatch = top.length ? { id: top[0].id, score: top[0].score, candidates: top } : { id: null, score: 0, candidates: [] };
+      req.recipeMatch = recipeMatch; T.saveRequest(req);
+    } catch (e) { recipeMatch = { id: null, score: 0, candidates: [], error: e.message }; }
+  }
+  const id = req.recipeId || (recipeMatch && adoptable(recipeMatch) ? recipeMatch.id : null);
+  if (id) { try { recipe = RC.load(id, req.recipeId ? req.recipeVersion : null); } catch { recipe = null; } }
+  return { recipe, recipeMatch };
 }
 
 /** After a run: validate artifacts and compute the extras the transition needs. */
 function postChecks(req, stage, agentName, parsed, ctx) {
   const extras = {};
+  // RD-2: the entity policy and the recipe the transition decides tiers with (pure once handed in)
+  try { extras.policy = POL.load(POL.businessOf({ ...req, ...(parsed && parsed.result && parsed.result.subject ? { subject: parsed.result.subject } : {}) })); } catch { extras.policy = null; }
+  extras.recipe = (ctx && ctx.recipe) || null; if (!extras.recipe) { try { extras.recipe = recipeFor(req).recipe; } catch { extras.recipe = null; } }
   if (stage === 'scope') {
     try { extras.plan = readPlan(req.id); T.writeArtifact(req.id, 'plan.json', JSON.stringify(extras.plan, null, 1)); } catch (e) { extras.planError = e.message; } // validate() fills read/domain per call; keep them on disk for the dashboard
     if (extras.plan && parsed.result && parsed.result.status === 'ok' && !(extras.plan.calls || []).length && !(extras.plan.children || []).length) warnComment(req.id, stage, 'the plan names no calls; the worker will have to search from scratch');
@@ -181,6 +269,7 @@ function postChecks(req, stage, agentName, parsed, ctx) {
     extras.verdict = v;
     if (v === 'pass' && !checks.pass) { extras.verdict = 'fail'; warnComment(req.id, stage, `the Verifier passed the request but code-checked items failed (${checks.failing.join(', ')}); the code wins`); }
     extras.proposals = PR.summary(req.id);
+    extras.tierA = tierADecisions(req, extras.policy, extras.recipe);
     EV.emit('verify', { request: req.id, failed: extras.verdict !== 'pass', failing: extras.failing });
   }
   if (stage === 'deliver') {
@@ -188,6 +277,31 @@ function postChecks(req, stage, agentName, parsed, ctx) {
     try { EVD.assemble(T.loadRequest(req.id)); } catch (e) { warnComment(req.id, stage, `evidence page not assembled: ${e.message}`); }
   }
   return extras;
+}
+
+/** Did the worker stage this proposal as tier A? An agent may demote (A→B when the amount is its estimate) and policy honours that. */
+function agentAskedA(p) { return p.tier === 'A' || /agent asked for A\b/.test(String(p.tierReason || '')); }
+
+/** The pending proposals the entity policy decides to tier A with autoApply (pure given the policy; reads proposals.json). */
+function tierADecisions(req, policy, recipe = null) {
+  const pol = policy || POL.load(POL.businessOf(req));
+  return PR.load(req.id).items.filter((p) => p.status === 'proposed' && p.kind && p.tier !== 'C' && agentAskedA(p)).map((p) => {
+    const d = POL.decide({ kind: p.kind, amount: p.amountApproved ?? p.amount ?? null, facts: p.facts || {}, recipe, policy: pol, actorContext: req.actorContext || null });
+    return { id: p.id, kind: p.kind, tier: d.tier, autoApply: d.autoApply, reason: d.reason, policyVersion: d.policyVersion };
+  }).filter((d) => d.tier === 'A');
+}
+
+/** The policy's approvals, written when verify hands to apply before any gate. Labelled policy@v<n>; never a person's name. */
+function applyTierA(id, policyApply) {
+  const req = T.loadRequest(id);
+  const done = [];
+  for (const it of (policyApply && policyApply.items) || []) {
+    try { PR.decideByPolicy(id, it.id, { version: policyApply.version, reason: it.reason, tier: 'A' }); done.push(it.id); } catch (e) { warnComment(id, 'verify', `${it.id} not approved by policy: ${e.message}`); }
+  }
+  req.proposals = PR.load(id).items.map((p) => ({ id: p.id, status: p.status, by: p.reviewedBy || null, at: p.reviewedAt || null, appliedRef: p.appliedRef || null }));
+  T.saveRequest(req);
+  if (done.length) { T.addComment(id, { author: `policy@v${policyApply.version}`, stage: 'verify', body: `approved ${done.join(', ')} (tier A under the entity policy, version ${policyApply.version}); the Applier posts them now, before any gate` }); EV.emit('policy_apply', { request: id, items: done, version: policyApply.version }); }
+  return done;
 }
 
 function cfgFor(agentName, stage, all = AGENT_CFG) {
@@ -320,10 +434,25 @@ function resumeFromArtifacts(id) {
   const parsed = { ok: true, comment: '', result: resultFromArtifacts(req, stage) };
   const extras = postChecks(req, stage, agentName, parsed, {});
   const tr = transition(req, stage, agentName, parsed.result, extras);
-  Object.assign(req, tr.patch || {}); req.status = tr.status; delete req.blocked; T.saveRequest(req);
+  Object.assign(req, tr.patch || {}); req.status = tr.status; if (tr.status === 'blocked') req.blocked = blockedInfo(stage, agentName, tr.reason, tr.gap); else delete req.blocked; T.saveRequest(req);
+  afterTransition(req, stage, tr);
   T.addComment(id, { author: 'orchestrator', stage, body: `→ ${tr.status} (judged from artifacts${tr.reason ? `: ${tr.reason}` : ''})` });
-  EV.emit('transition', { request: id, stage, agent: agentName, to: tr.status, reason: `resume: ${tr.reason || ''}` });
+  EV.emit('transition', { request: id, stage, agent: agentName, to: tr.status, reason: `resume: ${tr.reason || ''}`, gap: tr.gap || null });
   return { status: tr.status, reason: tr.reason };
+}
+
+/** Side effects a transition asks for, written by code after the pure decision: policy approvals, question counts. */
+function afterTransition(req, stage, tr) {
+  if (tr.status === 'apply' && tr.patch && tr.patch.policyApply) applyTierA(req.id, tr.patch.policyApply);
+  // FR-37: a delivered request that followed no library recipe becomes a candidate recipe; one that followed a candidate counts as a use
+  if (tr.status === 'done' && stage === 'deliver') {
+    try {
+      const fresh = T.loadRequest(req.id);
+      if (!fresh.recipeId) { const c = RC.compile(fresh.id); if (c && c.ok !== false && c.candidate) { T.addComment(fresh.id, { author: 'orchestrator', stage, body: `→ compiled into candidate recipe ${c.candidate.id} (promote it after a second use and a passing eval)` }); EV.emit('recipe_compiled', { request: fresh.id, candidate: c.candidate.id }); } }
+      else if (/^cand-/.test(fresh.recipeId)) RC.recordUse(fresh.recipeId, fresh.id, (fresh.subject && (fresh.subject.businessIds || [])[0]) || null);
+    } catch (e) { warnComment(req.id, stage, `candidate recipe not compiled: ${e.message}`); }
+  }
+  if (tr.patch && Array.isArray(tr.patch.pendingQuestions) && tr.patch.pendingQuestions.length) { const fresh = T.loadRequest(req.id); fresh.questionsAsked = (fresh.questionsAsked || 0) + tr.patch.pendingQuestions.length; T.saveRequest(fresh); }
 }
 
 function blockedStage(req) { const r = (req.runs || [])[req.runs.length - 1]; return (req.blocked && req.blocked.stage) || (r ? r.stage : 'intake'); }
@@ -337,9 +466,10 @@ function markAborted(id) {
 }
 function reconcile(req) { if (!lockHolder(req.id) && (req.runs || []).some((r) => r.status === 'running')) { markAborted(req.id); return T.loadRequest(req.id); } return req; }
 
-function blockedInfo(stage, agent, reason) {
-  const kind = /budget exhausted/.test(reason || '') ? 'budget' : /verification keeps failing/.test(reason || '') ? 'loop_verify' : 'stage';
-  return { stage, agent, kind, reason: String(reason || '').slice(0, 500) };
+function blockedInfo(stage, agent, reason, gap = null) {
+  const g = GAPS.includes(gap) ? gap : (GAPS.find((w) => new RegExp(`^${w}:`).test(String(reason || ''))) || null);
+  const kind = /budget exhausted/.test(reason || '') ? 'budget' : /verification keeps failing/.test(reason || '') ? 'loop_verify' : g ? 'gap' : 'stage';
+  return { stage, agent, kind, gap: g, reason: String(reason || '').slice(0, 500) };
 }
 
 // ---------------------------------------------------------------- parents and children
@@ -372,6 +502,7 @@ async function run(id, opts = {}) {
     const cfg = pipeline.stages[stage];
     if (!cfg) throw new Error(`unknown status ${stage}`);
     if (cfg.gate) { log(`⏸ ${id} is at ${cfg.label}. Approve with: lab approve ${id} --gate ${cfg.gate} --by <name>`); break; }
+    if (cfg.input) { log(`⏸ ${id} waits for ${pendingInputs(req).map((i) => i.name).join(', ') || 'a document'}. Supply it with a message (--input-for <name>)`); break; }
     if (stage === 'children') { if (childrenDone(req)) { req.status = 'deliver'; T.saveRequest(req); T.addComment(id, { author: 'orchestrator', stage, body: '→ deliver (all children done)' }); req = T.loadRequest(id); continue; } log(`⏸ ${id} waits for children: ${(req.children || []).map((k) => k.requestId).join(', ')}`); break; }
     if (cfg.terminal || stage === 'blocked') { log(`■ ${id} is ${cfg.label}`); break; }
     if (opts.until && stage === opts.until) { log(`■ reached --until ${stage}`); break; }
@@ -400,10 +531,11 @@ async function run(id, opts = {}) {
       const tr = transition(req, stage, agentName, out.parsed.result, extras);
       Object.assign(req, tr.patch || {});
       req.status = tr.status;
-      if (tr.status === 'blocked') req.blocked = blockedInfo(stage, agentName, tr.reason); else delete req.blocked;
+      if (tr.status === 'blocked') req.blocked = blockedInfo(stage, agentName, tr.reason, tr.gap); else delete req.blocked;
       T.saveRequest(req);
+      afterTransition(req, stage, tr); req = T.loadRequest(id);
       T.addComment(id, { author: 'orchestrator', stage, body: `→ ${tr.status}${tr.reason ? ` (${tr.reason})` : ''}` });
-      EV.emit('transition', { request: id, stage, agent: agentName, to: tr.status, reason: tr.reason || null });
+      EV.emit('transition', { request: id, stage, agent: agentName, to: tr.status, reason: tr.reason || null, gap: tr.gap || null });
       // the evidence page carries the final status and the delivery comment, so it is assembled once more at the end
       if (tr.status === 'done') { try { EVD.assemble(T.loadRequest(id)); } catch (e) { warnComment(id, stage, `evidence page not refreshed: ${e.message}`); } }
       log(`  → ${tr.status}${tr.reason ? ` (${tr.reason})` : ''}`);
@@ -419,9 +551,11 @@ async function run(id, opts = {}) {
 
 // ---------------------------------------------------------------- human actions (the only writers of gate fields)
 function needBy(by) { if (!by || !String(by).trim()) throw new Error('--by <name> is required: the request records who decided'); return String(by).trim(); }
+/** One more decision a person had to make on this request (RD-2 metric). Policy decisions never call this. */
+function touch(req) { req.touches = (Number(req.touches) || 0) + 1; return req; }
 
 function approve(id, gate, by, note, role = 'approver') {
-  const req = T.loadRequest(id); by = needBy(by);
+  const req = touch(T.loadRequest(id)); by = needBy(by);
   const g = Number(gate); if (![1, 2].includes(g)) throw new Error('gate must be 1 or 2');
   const want = g === 1 ? 'awaiting_gate_1' : 'awaiting_gate_2';
   if (req.status !== want) throw new Error(`request is ${req.status}, not at Gate ${g}`);
@@ -440,7 +574,7 @@ function approve(id, gate, by, note, role = 'approver') {
 }
 
 function reject(id, gate, by, note) {
-  const req = T.loadRequest(id); by = needBy(by);
+  const req = touch(T.loadRequest(id)); by = needBy(by);
   const g = Number(gate); const want = g === 1 ? 'awaiting_gate_1' : 'awaiting_gate_2';
   if (req.status !== want) throw new Error(`request is ${req.status}, not at Gate ${g}`);
   if (!note) throw new Error('a note is required when sending back');
@@ -465,13 +599,13 @@ function decideProposal(id, pid, by, { decision, note, amount, body }) {
   if (status === 'answered' && !note) throw new Error('an answer is required');
   const it = PR.decide(id, pid, { status, by, note: note || null, amount: amount ?? null, body: body || null });
   req.proposals = PR.load(id).items.map((p) => ({ id: p.id, status: p.status, by: p.reviewedBy || null, at: p.reviewedAt || null, appliedRef: p.appliedRef || null }));
-  T.saveRequest(req);
+  touch(req); T.saveRequest(req);
   T.addComment(id, { author: by, stage: 'awaiting_gate_2', body: `${status} ${pid} (${it.kind || 'question'}, tier ${it.tier})${amount != null ? ` with amount ${amount}` : ''}${note ? `: ${note}` : ''}` });
   return it;
 }
 
 function answer(id, by, text) {
-  const req = T.loadRequest(id); by = needBy(by);
+  const req = touch(T.loadRequest(id)); by = needBy(by);
   if (!(req.pendingQuestions || []).length) throw new Error('no pending questions');
   req.answers = [req.answers, `Q: ${req.pendingQuestions.join(' | ')}\nA (${by}): ${text}`].filter(Boolean).join('\n\n');
   req.pendingQuestions = [];
@@ -480,9 +614,51 @@ function answer(id, by, text) {
   return req;
 }
 
+/**
+ * A person supplies one of the inputs the desk asked for (RD-2 awaiting_input). The input is marked received; when
+ * none is still pending the request re-enters the stage that asked (inputsStage) with the file among its attachments.
+ */
+function provideInput(id, by, name, { note = null, attachments = [] } = {}) {
+  const req = touch(T.loadRequest(id)); by = needBy(by);
+  const it = (req.inputsNeeded || []).find((i) => i && i.name === name && !i.receivedAt);
+  if (!it) throw new Error(`${name ? `"${name}"` : 'that'} is not an input this request is waiting for${pendingInputs(req).length ? ` (waiting for: ${pendingInputs(req).map((i) => i.name).join(', ')})` : ''}`);
+  it.receivedAt = new Date().toISOString(); it.receivedFrom = by; it.missing = false; it.files = (attachments || []).map((f) => (typeof f === 'string' ? f : f.name)).filter(Boolean); if (note) it.note = note;
+  const left = pendingInputs(req);
+  if (req.status === 'awaiting_input' && !left.length) req.status = req.inputsStage || 'execute';
+  T.saveRequest(req);
+  T.addComment(id, { author: by, stage: 'awaiting_input', body: `supplied ${name}${it.files.length ? ` (${it.files.join(', ')})` : ''}${note ? `: ${note}` : ''}${left.length ? `; still waiting for ${left.map((i) => i.name).join(', ')}` : ` → ${req.status}`}` });
+  EV.emit('input', { request: id, by, name, resumed: !left.length ? req.status : null });
+  return req;
+}
+
+/** Pure: has every pending input of a waiting request outlived the timeout? */
+function inputsExpired(req, { now = Date.now(), days = null } = {}) {
+  if (req.status !== 'awaiting_input') return false;
+  const left = pendingInputs(req); if (!left.length) return true;
+  const d = Number(days ?? req.inputTimeoutDays ?? (pipeline.inputs || {}).timeoutDays ?? 5);
+  return left.every((i) => now - Date.parse(i.askedAt || req.updatedAt || 0) >= d * 864e5);
+}
+
+/** The worker loop's sweep: requests whose inputs timed out resume the stage that asked, inputs marked missing. */
+function expireInputs({ now = Date.now() } = {}) {
+  const out = [];
+  for (const r of T.listRequests()) {
+    if (r.status !== 'awaiting_input') continue;
+    let days = r.inputTimeoutDays; if (days == null && r.recipeId) { try { days = RC.load(r.recipeId, r.recipeVersion).inputTimeoutDays; } catch { days = null; } }
+    if (!inputsExpired(r, { now, days })) continue;
+    const names = [];
+    for (const i of r.inputsNeeded || []) if (!i.receivedAt && !i.missing) { i.missing = true; i.expiredAt = new Date(now).toISOString(); names.push(i.name); }
+    r.status = r.inputsStage || 'execute'; T.saveRequest(r);
+    T.addComment(r.id, { author: 'orchestrator', stage: 'awaiting_input', body: `→ ${r.status} (input timeout after ${days ?? (pipeline.inputs || {}).timeoutDays ?? 5} days: ${names.join(', ')} marked missing; the work continues and says so)` });
+    EV.emit('transition', { request: r.id, stage: 'awaiting_input', agent: null, to: r.status, reason: 'input timeout', gap: 'input' });
+    out.push(r.id);
+  }
+  return out;
+}
+
 /** A delivered request sent back for another round. Counts against the verify loop budget. */
 function sendBack(id, by, note) {
-  const req = T.loadRequest(id); by = needBy(by);
+  const req = touch(T.loadRequest(id)); by = needBy(by);
   if (req.status !== 'done') throw new Error(`request is ${req.status}; only a delivered request can be sent back`);
   if (!note) throw new Error('a note is required');
   const n = (req.loops.verify || 0) + 1;
@@ -532,7 +708,7 @@ function amend(id, by, { title, body } = {}) {
 }
 /** Record a human override of a failing done item (kept on the request and shown on the evidence page). */
 function override(id, by, item, reason) {
-  const req = T.loadRequest(id); by = needBy(by);
+  const req = touch(T.loadRequest(id)); by = needBy(by);
   if (!reason) throw new Error('a reason is required');
   req.overrides = [...(req.overrides || []), { item, by, reason, at: new Date().toISOString() }];
   if (req.status === 'blocked' && req.blocked && req.blocked.kind === 'loop_verify') { req.status = 'deliver'; delete req.blocked; }
@@ -574,6 +750,7 @@ function admission(req, others, { activeIds = new Set(), maxRuns = (pipeline.con
 
 async function worker({ once = false, intervalMs = 30000 } = {}) {
   for (;;) {
+    try { for (const id of expireInputs()) log(`⏰ ${id}: input timeout, resuming`); } catch (e) { log(`✖ input sweep: ${e.message}`); }
     const all = T.listRequests().map(reconcile);
     const active = new Set(all.filter((r) => lockHolder(r.id)).map((r) => r.id));
     for (const r of all) {
@@ -596,13 +773,24 @@ function metrics() {
     const humanWaitMin = {};
     const comments = T.listComments(r.id);
     for (const g of [1, 2]) { const at = comments.find((c) => new RegExp(`→ awaiting_gate_${g}`).test(c.body)); const dec = (r.gates[g] || {}).at || (r.gates[g] || {}).rejectedAt; if (at && dec) humanWaitMin[g] = Math.round((Date.parse(dec) - Date.parse(at.at)) / 60000); }
-    return { id: r.id, kind: r.kind, size: r.size, status: r.status, costUsd: spent(r), runs: runs.length, wallMin: first && last ? Math.round((last - first) / 60000) : null, humanWaitMin, loops: r.loops, writes: r.writes, touches: comments.filter((c) => !['orchestrator'].includes(c.author) && !Object.values(agents).some((a) => a.label === c.author) && c.author !== r.reporter).length + (r.gates[1].approved ? 1 : 0) + (r.gates[2].approved ? 1 : 0) };
+    // touches: the counter the gate writers keep (RD-2); older requests without one are counted from their comments
+    const legacyTouches = comments.filter((c) => !['orchestrator'].includes(c.author) && !Object.values(agents).some((a) => a.label === c.author) && c.author !== r.reporter && !/^policy@/.test(c.author)).length + (r.gates[1].approved ? 1 : 0) + (r.gates[2].approved ? 1 : 0);
+    return { id: r.id, kind: r.kind, size: r.size, status: r.status, recipeId: r.recipeId || null, costUsd: spent(r), runs: runs.length, wallMin: first && last ? Math.round((last - first) / 60000) : null, humanWaitMin, loops: r.loops, writes: r.writes, touches: r.touches != null ? Number(r.touches) : legacyTouches, gap: r.status === 'blocked' && r.blocked ? r.blocked.gap || null : null, inputsNeeded: pendingInputs(r).length };
   });
 }
 
+/** Blocked requests by capability gap (read, compute, change, prove, input), now and over the event log. */
+function gapCounts() {
+  const now = Object.fromEntries(GAPS.map((g) => [g, 0])); const ever = Object.fromEntries(GAPS.map((g) => [g, 0]));
+  for (const r of T.listRequests()) if (r.status === 'blocked' && r.blocked && GAPS.includes(r.blocked.gap)) now[r.blocked.gap] += 1;
+  for (const e of EV.read()) if (e.type === 'transition' && GAPS.includes(e.gap)) ever[e.gap] += 1;
+  return { now, ever };
+}
+
 module.exports = {
-  pipeline, agents, KINDS, WORKERS, laneFor, isParent, isFast, classify, transition, agentsForStage, assertPreconditions, budgetFor, loopLimit, spent, workerFor,
-  buildCtx, postChecks, cfgFor, runAgent, run, resumeFromArtifacts, markAborted, reconcile, blockedInfo, blockedStage, stageArtifactsPresent,
+  pipeline, agents, KINDS, WORKERS, GAPS, laneFor, isParent, isFast, classify, adoptable, transition, agentsForStage, assertPreconditions, budgetFor, loopLimit, spent, workerFor,
+  buildCtx, recipeFor, RECIPE_MATCH_MIN, postChecks, cfgFor, runAgent, run, resumeFromArtifacts, markAborted, reconcile, blockedInfo, blockedReason, blockedStage, stageArtifactsPresent,
   approve, reject, decideProposal, answer, sendBack, raiseBudget, grantLoop, requeue, cancel, amend, override, enqueue, dequeue, pendingLessons, acceptLessons,
-  lock, unlock, lockHolder, runnable, admission, worker, metrics, spawnChildren, childrenDone, estimateCost,
+  provideInput, inputsExpired, expireInputs, pendingInputs, normalizeInputs, tierADecisions, applyTierA, afterTransition, touch,
+  lock, unlock, lockHolder, runnable, admission, worker, metrics, gapCounts, spawnChildren, childrenDone, estimateCost,
 };

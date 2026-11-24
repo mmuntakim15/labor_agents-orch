@@ -1,0 +1,95 @@
+{
+  "id": "R59",
+  "version": 1,
+  "group": 7,
+  "title": "Recurring vendor charges against contract terms",
+  "prompt": "Each month, compare recurring vendor charges with contract terms and prior periods. Flag rate changes, duplicate invoices and unexpected fees.",
+  "keywords": [
+    "contract",
+    "rate change",
+    "escalator",
+    "unexpected fee",
+    "subscription",
+    "recurring charge",
+    "vendor spend"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null,
+    "cadence": "monthly"
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Vendor contract register",
+      "periodRule": "last_closed_month",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "maxAgeDays": 45,
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read the standing contract register (rates, escalators, start and end dates)",
+    "pull the month's vendor charges and the prior months",
+    "run recurrence_detect, then schedule_vs_actual against the register",
+    "flag rate changes outside the escalator, duplicate invoices and fees not in the contract; list vendors with no contract"
+  ],
+  "compute": [
+    "recurrence_detect",
+    "schedule_vs_actual"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the vendor id, the invoice id and the contract line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "vendor-contract-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "vendor-contract-exceptions.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "vendor-contract-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Contractual escalators and usage-based changes are allowed; vendors with no contract on the register are listed separately"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "vendor-contract-exceptions.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r59-seed-co"
+  ]
+}

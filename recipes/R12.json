@@ -1,0 +1,91 @@
+{
+  "id": "R12",
+  "version": 1,
+  "group": 2,
+  "title": "Vendor bill in the AP subledger with no general ledger posting",
+  "prompt": "Investigate why a vendor bill appears in the AP subledger but its expected posting is missing from the general ledger.",
+  "keywords": [
+    "AP subledger",
+    "missing posting",
+    "bill not posted",
+    "general ledger",
+    "sync failure",
+    "event log",
+    "draft bill",
+    "void",
+    "period lock",
+    "integration"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": null,
+    "periodRule": "year_to_date",
+    "event": null,
+    "cadence": "on request"
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Integration event logs for the accounts payable connection",
+      "periodRule": "year_to_date",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "identify the bill from the request (vendor, bill number, amount, date) and read it in Dime's AP subledger with its status",
+    "search the general ledger and journal entries for the expected posting by bill reference, vendor, amount and date",
+    "read the integration event logs for that bill: failed, skipped or pending sync events and their messages",
+    "check the period-lock state for the bill date and the bill status (draft, awaiting approval, approved, void, paid)",
+    "name the cause the evidence supports (status, lock, sync failure, posted to another date or account) and what would post it; say \"could not determine\" when the evidence does not",
+    "write the workbook: Exceptions holds the bill and its cause, Detail the trail"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the bill id and the event id or ledger row it rests on",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "ap-posting-investigation.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "ap-posting-investigation.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "ap-posting-investigation.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The stated cause names the event, status or lock it rests on; a cause the evidence does not support is written as \"could not determine\", and no posting or re-sync is proposed by the desk"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "ap-posting-investigation.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r12-seed-co"
+  ]
+}

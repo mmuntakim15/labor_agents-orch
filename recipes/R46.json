@@ -1,0 +1,146 @@
+{
+  "id": "R46",
+  "version": 1,
+  "group": 5,
+  "title": "Intercompany service arrangements: recharge analysis",
+  "prompt": "Review intercompany service arrangements and actual costs. Map the transaction flows and prepare a preliminary recharge accounting analysis.",
+  "keywords": [
+    "intercompany",
+    "recharge",
+    "management fee",
+    "cost allocation",
+    "service agreement",
+    "transfer pricing",
+    "markup",
+    "transaction flows",
+    "research"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 5 1,4,7,10 *",
+    "periodRule": "prior_quarter",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Intercompany relationships and balances matrix",
+      "periodRule": "prior_quarter",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Actual costs by entity and cost centre for the quarter",
+      "periodRule": "prior_quarter",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Intercompany service agreements",
+      "periodRule": "prior_quarter",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "docx"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Cost allocation workbook",
+      "periodRule": "prior_quarter",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": false,
+      "maxAgeDays": 180
+    }
+  ],
+  "steps": [
+    "read each service agreement: provider, recipient, services, cost base, allocation key, markup, billing frequency; read the standing allocation workbook",
+    "pull the intercompany relationships, the balances matrix and the quarter's actual costs by entity",
+    "map the flows (who provides what to whom) and compute the recharge each agreement implies from actual costs; compare with what was booked",
+    "draft the entries each entity would need inside the memo only; nothing is proposed in Dime",
+    "write the memo citing the agreement clauses and the guidance relied on (marked \"verify\") and the workbook of flows, computed recharges and booked amounts"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The memo cites the paragraphs it relies on, marks every citation \"verify\", draws no conclusion where facts are missing, and leaves the judgement with the accountant; it uses none of the words definitely, certainly or guaranteed",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "intercompany-recharge-memo.pdf",
+        "words": [
+          "definitely",
+          "certainly",
+          "guaranteed"
+        ]
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The memo exists as a pdf",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "name": "intercompany-recharge-memo.pdf"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (a flow without an agreement, a recharge differing from what was booked) cites the agreement clause and the entity and account ids",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "intercompany-recharge.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "intercompany-recharge.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "intercompany-recharge.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Draft entries appear in the memo only and are never proposed; computed recharges show their arithmetic from actual costs and the allocation key"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "intercompany-recharge-memo.pdf",
+      "sheets": [
+        "Facts",
+        "Transaction flows",
+        "Recharge analysis",
+        "Draft entries",
+        "Missing facts",
+        "Preliminary conclusion"
+      ]
+    },
+    {
+      "name": "intercompany-recharge.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-policy",
+  "restrictedData": false,
+  "budgetUsd": 15,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r46-seed-co"
+  ]
+}

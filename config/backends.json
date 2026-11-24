@@ -6,7 +6,18 @@
       "label": "Local API on the QA database",
       "apiBaseUrl": "http://localhost:5150",
       "checkout": "../../ms-university",
-      "boot": { "start": ["node", "server.js"], "env": { "NODE_ENV": "development", "PORT": "5150" }, "health": "/healthz", "bootTimeoutMs": 90000 }
+      "boot": {
+        "start": [
+          "node",
+          "server.js"
+        ],
+        "env": {
+          "NODE_ENV": "development",
+          "PORT": "5150"
+        },
+        "health": "/healthz",
+        "bootTimeoutMs": 90000
+      }
     }
   }
 }

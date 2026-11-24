@@ -1,0 +1,151 @@
+{
+  "id": "R55",
+  "version": 1,
+  "group": 6,
+  "title": "Card transaction spreadsheet turned into journal entries",
+  "prompt": "Turn the attached card transaction spreadsheet into journal entries using its category column for the expense account, and propose them for the card account.",
+  "keywords": [
+    "card transactions",
+    "spreadsheet",
+    "import",
+    "journal entries",
+    "category column",
+    "expense account",
+    "credit card",
+    "bulk import"
+  ],
+  "kind": "change_request",
+  "worker": "preparer",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "current_month",
+    "event": null,
+    "cadence": "monthly"
+  },
+  "setup": [
+    {
+      "key": "categoryToAccountMap",
+      "q": "Which chart-of-accounts name does each category in the spreadsheet map to?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "cardAccount",
+      "q": "Which liability account is the card?",
+      "type": "accounts",
+      "scope": "recipe"
+    },
+    {
+      "key": "offsetAccount",
+      "q": "Which account takes a line whose category is not in the map until a person decides?",
+      "type": "accounts",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Card transaction spreadsheet",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Chart of accounts and the card account ledger",
+      "periodRule": "current_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read the period-lock state and the chart of accounts",
+    "run column_map over the spreadsheet: date, description, amount, category; stop with a question if a required column is ambiguous",
+    "map each category with categoryToAccountMap; lines whose category is not in the map are tier C questions, never posted to offsetAccount without a decision",
+    "run duplicate_pairs against the card account ledger so a line already posted is not imported twice",
+    "propose one bulk import of the mapped lines (debit the expense account, credit cardAccount) and write the workbook"
+  ],
+  "compute": [
+    "column_map",
+    "duplicate_pairs"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every proposed entry balances: the expense lines equal the card account credit",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-2",
+      "text": "The spreadsheet columns mapped without ambiguity and none required is missing",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "card-columns.json"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the spreadsheet row number and the category that did not map or the ledger line it duplicates",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "card-import.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "card-import.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "card-import.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Unmapped categories are questions, not postings; lines already in the ledger are skipped and listed"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "transaction_bulk_import",
+      "route": "POST /api/v1/transactions/accounting/businessId/:businessId/transactions",
+      "tierRules": [
+        {
+          "when": "every line's category maps to a chart-of-accounts name in the map",
+          "tier": "A"
+        },
+        {
+          "when": "a line's category is not in the map",
+          "tier": "C"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "card-import.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r55-seed-co"
+  ]
+}

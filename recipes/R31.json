@@ -1,0 +1,110 @@
+{
+  "id": "R31",
+  "version": 1,
+  "group": 3,
+  "title": "First-pass general ledger review against the prior month",
+  "prompt": "Do a first pass review of the last closed month's general ledger compared with the prior month. Flag unusual coding, possible duplicates, balances with the wrong sign, entries with no description and anything that looks out of place for this business.",
+  "keywords": [
+    "GL review",
+    "general ledger",
+    "wrong sign",
+    "no description",
+    "unusual",
+    "first pass",
+    "review items",
+    "hygiene"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "flagThreshold",
+      "q": "Below what amount should a ledger line not be flagged?",
+      "type": "number",
+      "scope": "*",
+      "default": 100
+    },
+    {
+      "key": "maxExceptions",
+      "q": "How many review items at most should the first pass list (ranked by size)?",
+      "type": "number",
+      "scope": "recipe",
+      "default": 60
+    }
+  ],
+  "inputs": [],
+  "steps": [
+    "pull the general ledger for the month and the prior month",
+    "run gl_hygiene with the flag threshold",
+    "rank items by amount and drop noise",
+    "write a numbered review list with a link to each transaction"
+  ],
+  "compute": [
+    "gl_hygiene"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "gl-first-pass.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "gl-first-pass.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "gl-first-pass.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The review list is ranked by size and does not exceed the agreed number of items",
+      "evaluator": "figure_in_range",
+      "args": {
+        "sheet": "Exceptions",
+        "name": "gl-first-pass.xlsx"
+      },
+      "expect": {
+        "max": "{{setup.maxExceptions}}"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Nothing was changed in Dime; the list is for the reviewer"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "gl-first-pass.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r31-seed-co"
+  ]
+}

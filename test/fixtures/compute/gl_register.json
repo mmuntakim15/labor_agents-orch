@@ -1,0 +1,15 @@
+{
+  "account": { "name": "Accrued Liabilities", "number": "2100", "type": "Liability" },
+  "summary": { "beginningBalance": 0, "totalDebits": 1575.5, "totalCredits": 1325.5, "endingBalance": 250 },
+  "rows": [
+    { "_id": null, "date": null, "reference": null, "description": "Beginning Balance", "debit": null, "credit": null, "balance": 0 },
+    { "_id": "R1", "date": "2026-08-15T00:00:00.000Z", "reference": "INV-1001", "description": "Vendor A invoice 1001", "debit": 1000, "credit": null, "balance": 1000 },
+    { "_id": "R2", "date": "2026-09-01T00:00:00.000Z", "reference": "PMT-77", "description": "Payment INV-1001", "debit": null, "credit": 1000, "balance": 0 },
+    { "_id": "R3", "date": "2026-09-10T00:00:00.000Z", "reference": "JE-5", "description": "Accrual", "debit": 250, "credit": null, "balance": 250 },
+    { "_id": "R4", "date": "2026-09-20T00:00:00.000Z", "reference": "JE-6", "description": "Accrual", "debit": 250, "credit": null, "balance": 500 },
+    { "_id": "R5", "date": "2026-10-01T00:00:00.000Z", "reference": "JE-9", "description": "Reversal", "debit": null, "credit": 250, "balance": 250 },
+    { "_id": "R6", "date": "2026-10-15T00:00:00.000Z", "reference": "", "description": "Bank fee", "debit": 75.5, "credit": null, "balance": 325.5 },
+    { "_id": "R7", "date": "2026-12-05T00:00:00.000Z", "reference": "", "description": "Bank fee refund", "debit": null, "credit": 75.5, "balance": 250 },
+    { "_id": null, "date": null, "reference": null, "description": "Ending Balance", "debit": 1575.5, "credit": 1325.5, "balance": 250 }
+  ]
+}

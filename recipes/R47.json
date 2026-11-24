@@ -1,0 +1,155 @@
+{
+  "id": "R47",
+  "version": 1,
+  "group": 5,
+  "title": "Tax compliance status and evidence gaps by jurisdiction",
+  "prompt": "Review available tax registration notices, prior filings and transaction activity. Prepare a jurisdiction-specific compliance status and evidence gaps report.",
+  "keywords": [
+    "tax compliance",
+    "jurisdiction",
+    "registration",
+    "nexus",
+    "sales tax",
+    "VAT",
+    "filings",
+    "notices",
+    "evidence gaps",
+    "research"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 5 1,4,7,10 *",
+    "periodRule": "prior_quarter",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Sales tax and VAT filings and jurisdiction settings",
+      "periodRule": "prior_quarter",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Sales transactions by jurisdiction for the quarter",
+      "periodRule": "prior_quarter",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Registration certificates and tax notices",
+      "periodRule": "prior_quarter",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Prior returns filed outside Dime",
+      "periodRule": "prior_quarter",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx"
+      ],
+      "optional": true
+    },
+    {
+      "name": "Compliance calendar",
+      "periodRule": "prior_quarter",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": false,
+      "maxAgeDays": 180
+    }
+  ],
+  "steps": [
+    "read the registration certificates, notices and prior returns; read the standing compliance calendar",
+    "pull the filings Dime holds and the quarter's sales by jurisdiction",
+    "per jurisdiction: registered or not, filing frequency, last filing, notices open, activity in the quarter; list the evidence missing for each (certificate, return, payment confirmation)",
+    "note where activity suggests a filing obligation with no registration on file, as a question for the tax preparer, citing the guidance relied on and marking it \"verify\"",
+    "write the status memo and the workbook by jurisdiction"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The memo cites the paragraphs it relies on, marks every citation \"verify\", draws no conclusion where facts are missing, and leaves the judgement with the accountant; it uses none of the words definitely, certainly or guaranteed",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "tax-compliance-status-memo.pdf",
+        "words": [
+          "definitely",
+          "certainly",
+          "guaranteed"
+        ]
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The memo exists as a pdf",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "name": "tax-compliance-status-memo.pdf"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (a missing document, an open notice, activity without registration) cites the jurisdiction and the filing id, notice or calendar line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "tax-compliance-status.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "tax-compliance-status.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "tax-compliance-status.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Filing and registration decisions are left to the tax preparer; no filing is created or completed"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "tax-compliance-status-memo.pdf",
+      "sheets": [
+        "Facts",
+        "Status by jurisdiction",
+        "Evidence gaps",
+        "Missing facts",
+        "Preliminary conclusion"
+      ]
+    },
+    {
+      "name": "tax-compliance-status.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-policy",
+  "restrictedData": false,
+  "budgetUsd": 12,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r47-seed-co"
+  ]
+}

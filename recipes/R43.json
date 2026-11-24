@@ -1,0 +1,148 @@
+{
+  "id": "R43",
+  "version": 1,
+  "group": 5,
+  "title": "Customer contract review under ASC 606 and ASC 842",
+  "prompt": "Review a customer contract and amendments against ASC 606 and ASC 842. Summarize relevant terms, accounting alternatives, missing facts and a preliminary conclusion.",
+  "keywords": [
+    "ASC 606",
+    "ASC 842",
+    "contract review",
+    "amendments",
+    "performance obligations",
+    "lease",
+    "embedded lease",
+    "accounting memo",
+    "research"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": null,
+    "periodRule": "current_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "accountingPolicies",
+      "q": "Which revenue and lease accounting policies has the entity adopted (practical expedients, portfolio approach, materiality)?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "signoffOwner",
+      "q": "Who signs off accounting conclusions for this entity?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Contract record and revenue recognition schedule in Dime",
+      "periodRule": "current_month",
+      "source": "dime",
+      "optional": true
+    },
+    {
+      "name": "Customer contract",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "docx"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Amendments and side letters",
+      "periodRule": "current_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "docx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "read the contract and every amendment; extract parties, term, deliverables, pricing, payment terms, variable consideration, termination and any right to use an identified asset",
+    "identify the performance obligations under ASC 606 and whether an embedded lease exists under ASC 842, citing the paragraphs relied on and marking each citation \"verify\"",
+    "set out the accounting alternatives with the facts each depends on; list the facts that are missing",
+    "compare with the entity's accountingPolicies and the contract record in Dime where one exists",
+    "write the memo with a preliminary conclusion only where the facts support one, addressed to signoffOwner, and the workbook with the contract figures"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The memo cites the paragraphs it relies on, marks every citation \"verify\", draws no conclusion where facts are missing, and leaves the judgement with the accountant; it uses none of the words definitely, certainly or guaranteed",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "asc606-842-contract-memo.pdf",
+        "words": [
+          "definitely",
+          "certainly",
+          "guaranteed"
+        ]
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The memo exists as a pdf",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "name": "asc606-842-contract-memo.pdf"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row (a missing fact, a term needing judgement) cites the contract clause or amendment page",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "contract-review.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "contract-review.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "contract-review.xlsx"
+      }
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "asc606-842-contract-memo.pdf",
+      "sheets": [
+        "Facts",
+        "Guidance",
+        "Alternatives",
+        "Missing facts",
+        "Preliminary conclusion"
+      ]
+    },
+    {
+      "name": "contract-review.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-policy",
+  "restrictedData": false,
+  "budgetUsd": 20,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r43-seed-co"
+  ]
+}

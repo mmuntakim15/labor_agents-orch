@@ -1,0 +1,149 @@
+{
+  "id": "R24",
+  "version": 1,
+  "group": 3,
+  "title": "Professional services time entries into the vendor accrual workbook",
+  "prompt": "Extract time entries from professional services invoices, separate work date from invoice date, and update the existing vendor accrual workbook.",
+  "keywords": [
+    "professional services",
+    "legal fees",
+    "consulting",
+    "time entries",
+    "work date",
+    "invoice date",
+    "accrual workbook",
+    "cutoff",
+    "hours",
+    "update in place"
+  ],
+  "kind": "report",
+  "worker": "preparer",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Itemized professional services invoices with time entries",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Vendor accrual workbook",
+      "periodRule": "last_closed_month",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "maxAgeDays": 45,
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read every invoice; run column_map over the itemized time entries (headers never positions) and save the mapping to data/ps-invoice-columns.json",
+    "for each time entry keep the work date, hours, rate and amount separately from the invoice date; a line with hours but no dollars is flagged, never allocated",
+    "group entries by vendor and by the month the work was done; compare with the accrual already in the workbook for that month",
+    "run xlsx_update_in_place to add or adjust the workbook rows for the period, keeping every existing row, formula and sheet; the updated copy is a deliverable",
+    "propose cutoff adjustments (tier B) where fees for prior-period work were expensed in the current period or the reverse",
+    "tie: the workbook total for the period equals the invoice lines allocated to it plus the flagged lines listed apart"
+  ],
+  "compute": [
+    "xlsx_update_in_place",
+    "column_map"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The updated vendor accrual workbook exists as a deliverable with its original sheets kept and the period's rows added or adjusted",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "pattern": "\\(updated\\)\\.xlsx$"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "The invoice time-entry columns were mapped by header with no ambiguous or missing required column",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "ps-invoice-columns.json"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the invoice id, the invoice line and the workbook row it updated",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "ps-accrual-cutoff.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "ps-accrual-cutoff.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "ps-accrual-cutoff.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Every proposed cutoff adjustment balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-6",
+      "text": "Work date and invoice date are separate columns on every entry; hours without dollars are flagged as exceptions and never allocated an amount; no existing workbook row is removed"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "accrual",
+      "route": "journal entry accrual cutoff adjustment",
+      "tierRules": [
+        {
+          "when": "a cutoff adjustment moving professional fees between periods by work date",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "ps-accrual-cutoff.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    },
+    {
+      "name": "Vendor accrual workbook (updated).xlsx",
+      "sheets": [
+        "(the workbook's own sheets, updated in place)"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 10,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r24-seed-co"
+  ]
+}

@@ -63,7 +63,9 @@ function decide(id, pid, { status, by, note = null, amount = null, body = null }
   if (!it) throw new Error(`no proposal ${pid} on ${id}`);
   if (!['approved', 'rejected', 'answered'].includes(status)) throw new Error(`bad proposal status ${status}`);
   if (it.tier === 'C' && status === 'approved') throw new Error(`${pid} is a tier C question; it cannot be approved, only answered`);
+  if (['applied', 'reversed'].includes(it.status)) throw new Error(`${pid} was already ${it.status}${it.appliedRef && it.appliedRef.id ? ` (${it.appliedRef.id})` : ''}; it cannot be decided again`);
   it.status = status; it.reviewedBy = by; it.reviewedAt = new Date().toISOString(); it.note = note;
+  delete it.policyDecision; // a person's decision replaces any earlier policy one
   if (amount != null && status === 'approved') { it.amountApproved = Number(amount); if (it.body && typeof it.body === 'object') { it.bodyOriginal = it.bodyOriginal || JSON.parse(JSON.stringify(it.body)); it.body = withAmount(it.body, Number(amount), it.amount); } }
   if (body && status === 'approved') { it.bodyOriginal = it.bodyOriginal || it.body; it.body = body; }
   save(id, doc);
@@ -76,17 +78,52 @@ function withAmount(body, amount, original) {
   return walk(body);
 }
 
+/**
+ * The policy's decision on a tier-A proposal (RD-2): approved with no person, labelled `policy@v<version>` so the
+ * record never reads as a human approval. Only the orchestrator's applyTierA calls this, and only for proposals
+ * decide() marked autoApply.
+ */
+function decideByPolicy(id, pid, { version, reason = null, tier = 'A' }) {
+  const doc = load(id);
+  const it = doc.items.find((x) => x.id === pid); if (!it) throw new Error(`no proposal ${pid} on ${id}`);
+  if (it.tier === 'C') throw new Error(`${pid} is a tier C question; policy never answers a question`);
+  if (it.status !== 'proposed') throw new Error(`${pid} is ${it.status}; policy decides only a pending proposal`);
+  const by = `policy@v${Number(version) || 0}`;
+  it.status = 'approved'; it.reviewedBy = by; it.reviewedAt = new Date().toISOString(); it.note = reason;
+  it.policyDecision = { tier, version: Number(version) || 0, reason, at: it.reviewedAt };
+  save(id, doc); return it;
+}
+
+/** A policy-approved proposal the Applier would not post after re-reading the policy: back to pending, with the reason. */
+function revertToProposed(id, pid, reason) {
+  const doc = load(id);
+  const it = doc.items.find((x) => x.id === pid); if (!it) throw new Error(`no proposal ${pid} on ${id}`);
+  if (it.status !== 'approved' || !/^policy@/.test(String(it.reviewedBy || ''))) throw new Error(`${pid} is not a policy-approved proposal`);
+  it.status = 'proposed'; it.reviewedBy = null; it.reviewedAt = null; it.note = reason; it.policyDeferred = { reason, at: new Date().toISOString(), was: it.policyDecision || null };
+  delete it.policyDecision;
+  save(id, doc); return it;
+}
+
 function markApplied(id, pid, { appliedRef, error = null }) {
   const doc = load(id);
   const it = doc.items.find((x) => x.id === pid); if (!it) throw new Error(`no proposal ${pid}`);
-  if (error) { it.status = 'failed'; it.error = String(error).slice(0, 500); } else { it.status = 'applied'; it.appliedRef = appliedRef; it.appliedAt = new Date().toISOString(); }
+  if (error) { it.status = 'failed'; it.error = String(error).slice(0, 500); } else { it.status = 'applied'; it.appliedRef = { ...appliedRef, at: (appliedRef && appliedRef.at) || new Date().toISOString() }; it.appliedAt = it.appliedRef.at; }
+  save(id, doc); return it;
+}
+
+/** An applied proposal undone through the product (src/reverse.js). */
+function markReversed(id, pid, { by, reason, reversalRef = null }) {
+  const doc = load(id);
+  const it = doc.items.find((x) => x.id === pid); if (!it) throw new Error(`no proposal ${pid}`);
+  if (it.status !== 'applied') throw new Error(`${pid} is ${it.status}, not applied`);
+  it.status = 'reversed'; it.reversedAt = new Date().toISOString(); it.reversedBy = by; it.reversedReason = reason; it.reversalRef = reversalRef;
   save(id, doc); return it;
 }
 
 function summary(id) {
   const items = load(id).items;
   const c = (s) => items.filter((x) => x.status === s).length;
-  return { total: items.length, proposed: c('proposed'), approved: c('approved'), rejected: c('rejected'), applied: c('applied'), failed: c('failed'), questions: items.filter((x) => x.tier === 'C').length, answered: c('answered'), pending: items.filter((x) => ['proposed', 'question'].includes(x.status)).length };
+  return { total: items.length, proposed: c('proposed'), approved: c('approved'), rejected: c('rejected'), applied: c('applied'), reversed: c('reversed'), failed: c('failed'), questions: items.filter((x) => x.tier === 'C').length, answered: c('answered'), pending: items.filter((x) => ['proposed', 'question'].includes(x.status)).length, policyApproved: items.filter((x) => x.status === 'approved' && /^policy@/.test(String(x.reviewedBy || ''))).length };
 }
 
-module.exports = { file, load, save, add, decide, markApplied, summary, tierFor, balanced, amountOf, withAmount };
+module.exports = { file, load, save, add, decide, decideByPolicy, revertToProposed, markApplied, markReversed, summary, tierFor, balanced, amountOf, withAmount };

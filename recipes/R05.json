@@ -1,0 +1,95 @@
+{
+  "id": "R05",
+  "version": 1,
+  "group": 1,
+  "title": "Fixed assets without depreciation and inactive CIP",
+  "prompt": "Which fixed assets have been placed in service but have no depreciation recorded, and which construction-in-progress items have been inactive for more than 90 days?",
+  "keywords": [
+    "fixed asset",
+    "depreciation",
+    "in service",
+    "construction in progress",
+    "CIP",
+    "capitalise",
+    "asset register"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "cipAccounts",
+      "q": "Which accounts hold construction in progress?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Fixed asset register kept outside Dime",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "list fixed assets with in-service dates and the depreciation schedule rows for the period",
+    "flag in-service assets with no depreciation posted",
+    "pull the CIP accounts' ledgers and find items with no activity in 90 days",
+    "write the workbook with cost, dates and last activity per row"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the asset id or the CIP transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "fixed-asset-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "fixed-asset-exceptions.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "fixed-asset-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Inactive CIP items are listed as inactive, never assumed ready for use"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "fixed-asset-exceptions.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r05-seed-co"
+  ]
+}

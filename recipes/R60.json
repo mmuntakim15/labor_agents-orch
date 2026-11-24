@@ -1,0 +1,90 @@
+{
+  "id": "R60",
+  "version": 1,
+  "group": 7,
+  "title": "Compliance deadlines and open requests tracker",
+  "prompt": "Monitor upcoming compliance deadlines and open close or audit requests. Summarize overdue items and missing evidence each week.",
+  "keywords": [
+    "compliance calendar",
+    "deadlines",
+    "filings",
+    "audit requests",
+    "PBC",
+    "overdue",
+    "evidence",
+    "tracker"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "last_week",
+    "event": null
+  },
+  "setup": [],
+  "inputs": [
+    {
+      "name": "Compliance calendar",
+      "periodRule": "last_week",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "maxAgeDays": 180,
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read the standing compliance calendar",
+    "pull open audit requests and close checklist items from Dime",
+    "list deadlines within 30 days, overdue items and requests with missing evidence",
+    "write the tracker; no message leaves the desk"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the calendar line or the request id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "compliance-tracker.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "compliance-tracker.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "compliance-tracker.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Only deadlines from the verified calendar are used; nothing is sent to anyone outside Dime"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "compliance-tracker.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r60-seed-co"
+  ]
+}

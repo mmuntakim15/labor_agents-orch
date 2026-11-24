@@ -1,0 +1,98 @@
+{
+  "id": "R04",
+  "version": 1,
+  "group": 1,
+  "title": "Vendors coded inconsistently across accounts or departments",
+  "prompt": "Identify vendors whose expenses are coded inconsistently across accounts or departments over the last quarter.",
+  "keywords": [
+    "coding",
+    "miscoding",
+    "inconsistent account",
+    "department",
+    "vendor mapping",
+    "categorisation drift"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 5 1,4,7,10 *",
+    "periodRule": "prior_quarter",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "allowedSplits",
+      "q": "Which vendors are allowed to be coded to more than one account or department (and which)?",
+      "type": "list",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Approved account and department coding guide",
+      "periodRule": "prior_quarter",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the quarter's expense transactions with vendor, account and department",
+    "run coding_consistency with the allowed splits removed",
+    "rank vendors by the amount coded away from their usual account",
+    "write the workbook with a transaction link per exception"
+  ],
+  "compute": [
+    "coding_consistency"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the vendor id and each transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "vendor-coding-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "vendor-coding-exceptions.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "vendor-coding-exceptions.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Vendors on the allowed-splits list do not appear as exceptions; different services that justify different coding are noted, not flagged"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "vendor-coding-exceptions.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r04-seed-co"
+  ]
+}

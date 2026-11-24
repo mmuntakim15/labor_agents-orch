@@ -1,0 +1,148 @@
+{
+  "id": "R53",
+  "version": 1,
+  "group": 6,
+  "title": "Unmatched customer receipts applied to open invoices",
+  "prompt": "Identify unmatched customer receipts and propose applying them to open invoices using remittance details.",
+  "keywords": [
+    "cash application",
+    "unapplied receipts",
+    "remittance",
+    "open invoices",
+    "payment application",
+    "short pay",
+    "payout reports",
+    "unmatched deposits"
+  ],
+  "kind": "change_request",
+  "worker": "preparer",
+  "trigger": {
+    "default": "0 6 * * 1-5",
+    "periodRule": "business_day",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "matchingTolerance",
+      "q": "Within what amount may a receipt differ from the invoice and still be applied as full payment?",
+      "type": "number",
+      "scope": "recipe"
+    },
+    {
+      "key": "shortPayHandling",
+      "q": "How are short payments handled (leave the balance open, write off under a limit, raise a credit memo)?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Bank and marketplace payout reports",
+      "periodRule": "business_day",
+      "source": "connection",
+      "connection": "plaid",
+      "optional": true
+    },
+    {
+      "name": "Unmatched bank receipts and open invoices by customer",
+      "periodRule": "business_day",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Remittance advices",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "csv",
+        "xlsx",
+        "eml"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the unmatched receipts from the bank feed and payout reports and the open invoices by customer",
+    "run remittance_parse over the remittance advices and payout reports to extract invoice numbers, amounts and payer names",
+    "match each receipt to invoices: exact (within matchingTolerance) → tier A; partial or several invoices → tier B; a short pay needing a write-off under shortPayHandling → tier C question",
+    "propose the payment applications; a receipt with no candidate invoice is listed, not applied",
+    "write the workbook"
+  ],
+  "compute": [
+    "remittance_parse"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every proposed application balances: the amount applied equals the receipt or the invoice balance it settles",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the bank transaction id and the invoice id or the remittance line",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "cash-application.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "cash-application.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "cash-application.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Receipts with no candidate invoice are listed, never applied to an account; write-offs are questions, not proposals"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "payment_application",
+      "route": "POST /api/v1/transactions/accounting/bookkeeping/businessId/:businessId/updateInvoice/:invoiceId/apply-payment",
+      "tierRules": [
+        {
+          "when": "the receipt equals one invoice within the matching tolerance and the remittance or payer names it",
+          "tier": "A"
+        },
+        {
+          "when": "the receipt covers several invoices or part of one",
+          "tier": "B"
+        },
+        {
+          "when": "a short payment would need a write-off or a credit memo",
+          "tier": "C"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "cash-application.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r53-seed-co"
+  ]
+}

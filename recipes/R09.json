@@ -1,0 +1,95 @@
+{
+  "id": "R09",
+  "version": 1,
+  "group": 1,
+  "title": "Card transactions uncategorised or personal-looking",
+  "prompt": "List card transactions in the last closed month that are uncategorized or look personal (gym, groceries, entertainment with no business note).",
+  "keywords": [
+    "credit card",
+    "corporate card",
+    "uncategorised",
+    "personal expense",
+    "cardholder",
+    "receipt policy",
+    "expense policy"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "last_closed_month",
+    "event": null,
+    "cadence": "weekly"
+  },
+  "setup": [
+    {
+      "key": "cardPolicy",
+      "q": "What does the card policy say about receipts, categories and business notes?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "cardholders",
+      "q": "Who holds a card and who approves their spend?",
+      "type": "list",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [],
+  "steps": [
+    "pull the month's card transactions with category and memo",
+    "flag uncategorised rows and rows whose merchant or category reads as personal with no business note",
+    "group by cardholder with the reason each was flagged"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the transaction id and the cardholder",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "card-transactions-to-review.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Rows are flagged for follow-up, never judged",
+      "evaluator": "no_judgement_words",
+      "args": {
+        "name": "card-transactions-to-review.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "card-transactions-to-review.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "card-transactions-to-review.xlsx"
+      }
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "card-transactions-to-review.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r09-seed-co"
+  ]
+}

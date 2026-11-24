@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "Possible duplicate bills or payments",
+    "body": "Find possible duplicate bills or payments this year: same vendor and the same or nearly the same amount within 30 days. Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "question",
+      "worker": "investigator",
+      "writes": false,
+      "recipeId": "R08"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R08 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"Duplicate payments / duplicate bills\",\"pairs\":[{\"kind\":\"bills\",\"vendor\":\"Blue Fin Catering\",\"amount\":\"418.20\",\"items\":[{\"ref\":\"B-1038\",\"issue_date\":\"2026-10-10\",\"amount\":418.2},{\"ref\":\"B-1041\",\"issue_date\":\"2026-10-13\",\"amount\":418.2}]},{\"kind\":\"bank\",\"vendor\":\"Blue Fin Catering\",\"amount\":"
+  }
+}

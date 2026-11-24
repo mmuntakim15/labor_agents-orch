@@ -1,0 +1,27 @@
+{
+  "asOf": "2026-11-30",
+  "categories": [
+    { "category": "assets", "debitTotal": 83000, "creditTotal": 5000, "lineItems": [
+      { "subCategory": "Current Assets", "items": [
+        { "entryName": "Operating Checking", "coaCode": "1000", "category": "assets", "subCategory": "Current Assets", "type": "debit", "amount": 52000, "tbType": "unadjusted", "trail": [] },
+        { "entryName": "Prepaid Insurance", "coaCode": "1300", "category": "assets", "subCategory": "Current Assets", "type": "debit", "amount": 6000, "tbType": "unadjusted", "trail": [] } ] },
+      { "subCategory": "Fixed Assets", "items": [
+        { "entryName": "Equipment", "coaCode": "1500", "category": "assets", "subCategory": "Fixed Assets", "type": "debit", "amount": 25000, "tbType": "unadjusted", "trail": [] },
+        { "entryName": "Accumulated Depreciation", "coaCode": "1510", "category": "assets", "subCategory": "Fixed Assets", "type": "credit", "amount": 5000, "tbType": "unadjusted", "trail": [] } ] } ] },
+    { "category": "liabilities", "debitTotal": 0, "creditTotal": 96000, "lineItems": [
+      { "subCategory": null, "items": [
+        { "entryName": "Accrued Expenses", "coaCode": "2100", "category": "liabilities", "subCategory": null, "type": "credit", "amount": 4000, "tbType": "unadjusted", "trail": [] },
+        { "entryName": "Deferred Revenue", "coaCode": "2300", "category": "liabilities", "subCategory": null, "type": "credit", "amount": 12000, "tbType": "unadjusted", "trail": [] },
+        { "entryName": "SBA Loan", "coaCode": "2500", "category": "liabilities", "subCategory": null, "type": "credit", "amount": 80000, "tbType": "unadjusted", "trail": [] } ] } ] },
+    { "category": "shareholder_equities", "debitTotal": 0, "creditTotal": 20000, "lineItems": [
+      { "subCategory": null, "items": [
+        { "entryName": "Retained Earnings", "coaCode": "3000", "category": "shareholder_equities", "subCategory": null, "type": "credit", "amount": 20000, "tbType": "unadjusted", "trail": [] } ] } ] },
+    { "category": "income", "debitTotal": 0, "creditTotal": 150000, "lineItems": [
+      { "subCategory": null, "items": [
+        { "entryName": "Sales", "coaCode": "4000", "category": "income", "subCategory": null, "type": "credit", "amount": 150000, "tbType": "unadjusted", "trail": [] } ] } ] },
+    { "category": "expense", "debitTotal": 36000, "creditTotal": 0, "lineItems": [
+      { "subCategory": null, "items": [
+        { "entryName": "Rent", "coaCode": "6000", "category": "expense", "subCategory": null, "type": "debit", "amount": 36000, "tbType": "unadjusted", "trail": [] } ] } ] }
+  ],
+  "grandTotal": { "debitTotal": 119000, "creditTotal": 271000, "delta": -152000 }
+}

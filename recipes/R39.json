@@ -1,0 +1,111 @@
+{
+  "id": "R39",
+  "version": 1,
+  "group": 4,
+  "title": "Why operating cash flow differs from net income this month",
+  "prompt": "Explain why operating cash flow differs from net income this month using working capital and noncash movements.",
+  "keywords": [
+    "operating cash flow",
+    "net income",
+    "working capital",
+    "noncash",
+    "depreciation",
+    "accruals",
+    "indirect method",
+    "cash conversion"
+  ],
+  "kind": "question",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "cashFlowMapping",
+      "q": "Which balance sheet accounts belong to each cash flow line (operating, investing, financing) when Dime's default mapping is not right?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Realtime statement of cash flows, balance sheet and profit and loss",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the profit and loss, the opening and closing balance sheets and Dime's statement of cash flows for the month",
+    "run scf_indirect with cashFlowMapping: net income, noncash items, working capital movements, operating cash flow",
+    "write the bridge from net income to operating cash flow with one line per movement and the driver behind each",
+    "write the workbook"
+  ],
+  "compute": [
+    "scf_indirect"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Net income at the top of the bridge equals Dime's profit and loss for the period",
+      "evaluator": "ties_to_report",
+      "args": {
+        "report": "profit_and_loss",
+        "currentStart": "{{period.start}}",
+        "currentEnd": "{{period.end}}",
+        "name": "cash-vs-income-bridge.xlsx"
+      },
+      "expect": {
+        "figure": "netIncome"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row (a movement without a driver, a mapping gap) cites the account id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "cash-vs-income-bridge.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "cash-vs-income-bridge.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "cash-vs-income-bridge.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "The bridge lines sum to operating cash flow with no residual; each movement is explained in plain words"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "cash-vs-income-bridge.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 6,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r39-seed-co"
+  ]
+}

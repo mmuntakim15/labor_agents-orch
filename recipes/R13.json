@@ -1,0 +1,148 @@
+{
+  "id": "R13",
+  "version": 1,
+  "group": 2,
+  "title": "Payroll funding, payroll journal entries and bank withdrawals by pay period",
+  "prompt": "Reconcile payroll funding, payroll journal entries and actual bank withdrawals by pay period. Explain differences caused by deposits, fees or timing.",
+  "keywords": [
+    "payroll",
+    "pay run",
+    "pay period",
+    "last pay date (period rule stand-in: business_day)",
+    "payroll funding",
+    "gross-to-net",
+    "payroll clearing",
+    "bank withdrawal",
+    "payroll fees",
+    "timing"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": null,
+    "periodRule": "business_day",
+    "event": "payroll.pay_run",
+    "cadence": "each pay run"
+  },
+  "comment": "Trigger period rule: the library has no last_pay_date rule yet, so business_day stands in; the pay period itself comes from the payCalendar setup answer and the register dates. Runs on the payroll.pay_run event or on request.",
+  "setup": [
+    {
+      "key": "payrollClearingAccount",
+      "q": "Which ledger account is the payroll clearing or payroll funding account?",
+      "type": "accounts",
+      "scope": "*"
+    },
+    {
+      "key": "payCalendar",
+      "q": "What is the pay calendar (frequency, pay dates, the lag between period end and pay date)?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Payroll gross-to-net report for the pay period",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Payroll funding report for the pay period",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Bank statement covering the pay date",
+      "periodRule": "business_day",
+      "source": "connection",
+      "connection": "Plaid",
+      "acceptedTypes": [
+        "pdf",
+        "csv"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "resolve the pay period and pay date from the pay calendar and the register",
+    "run column_map over the gross-to-net and funding reports (headers never positions) and save the mapping to data/payroll-funding-columns.json",
+    "pull the payroll journal entries and the payroll clearing account ledger for the period",
+    "pull the bank withdrawals on and around the pay date from the connection or statement",
+    "tie funding report total to the payroll journal entry and to the bank withdrawals; classify each difference as a deposit (direct deposit returned or held), a fee (provider fee billed with payroll) or timing (withdrawal in the next period)",
+    "write the workbook with totals only; no employee-level pay in any sheet"
+  ],
+  "compute": [
+    "column_map"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The gross-to-net and funding report columns were mapped by header with no ambiguous or missing required column",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "payroll-funding-columns.json"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "Every exception row cites the report line, the journal entry id or the bank transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "payroll-funding-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "payroll-funding-reconciliation.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "payroll-funding-reconciliation.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Each difference is classified as deposit, fee or timing with the figure on both sides; a difference that fits none is listed as unexplained, not forced into a class"
+    },
+    {
+      "id": "D-5",
+      "text": "The deliverable carries totals only: no employee name, pay, deduction or identifier leaves the source reports"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "payroll-funding-reconciliation.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-pending",
+  "restrictedData": true,
+  "budgetUsd": 10,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r13-seed-co"
+  ]
+}

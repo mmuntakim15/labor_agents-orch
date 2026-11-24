@@ -17,7 +17,7 @@ function sandbox(name) {
 
 /** A tiny Dime stand-in: login, profile, a report, a vendor create, with knobs for 401/429. */
 function fakeDime({ port = 0 } = {}) {
-  const state = { logins: 0, calls: [], vendors: [], expire: false, rateLimitOnce: false, failVendor: null };
+  const state = { logins: 0, calls: [], vendors: [], journals: [], removedPayments: [], categorized: [], expire: false, rateLimitOnce: false, failVendor: null, failRemovePayment: false };
   const server = http.createServer((req, res) => {
     let body = ''; req.on('data', (c) => { body += c; }); req.on('end', () => {
       const url = new URL(req.url, 'http://x'); const p = url.pathname; const auth = req.headers.authorization || '';
@@ -31,6 +31,12 @@ function fakeDime({ port = 0 } = {}) {
       if (/^\/api\/v1\/accountant\/reports\/profit-and-loss-realtime\//.test(p)) { if (state.rateLimitOnce) { state.rateLimitOnce = false; return send(429, { message: 'slow down' }, { 'retry-after': '0' }); } return send(200, { data: { metrics: { netIncome: 12418.22, totalRevenue: 90000 }, rows: [{ account: 'Rent', amount: 4500 }, { account: 'Payroll', amount: 41006.18 }] } }); }
       if (/^\/api\/v1\/accountant\/reports\/ap-aging\//.test(p)) return send(200, { data: { total: 5400.5, rows: [{ vendor: 'Acme Supply', total: 5400.5 }] } });
       if (p === '/api/v1/accountant/vendor' && req.method === 'POST') { const b = JSON.parse(body || '{}'); if (state.failVendor && b.name === state.failVendor) return send(400, { message: 'Vendor already exists' }); const v = { _id: `v${state.vendors.length + 1}`, ...b }; state.vendors.push(v); return send(201, { success: true, data: v }); }
+      // RD-2 reversal routes: vendor update (deactivate), remove a bill payment, post a journal, re-categorise a transaction
+      let m;
+      if ((m = /^\/api\/v1\/accountant\/vendor\/([^/]+)$/.exec(p)) && req.method === 'PUT') { const v = state.vendors.find((x) => x._id === m[1]); if (!v) return send(404, { message: 'Vendor not found' }); Object.assign(v, JSON.parse(body || '{}')); return send(200, { success: true, data: v }); }
+      if ((m = /^\/api\/v1\/transactions\/accounting\/bookkeeping\/businessId\/([^/]+)\/bill\/([^/]+)\/remove-payment$/.exec(p)) && req.method === 'PUT') { const b = JSON.parse(body || '{}'); if (state.failRemovePayment) return send(422, { message: 'This payment came from a bank line; remove it by unlinking that line' }); state.removedPayments.push({ billId: m[2], paymentId: b.payment_id }); return send(200, { success: true, data: { _id: `rev-${b.payment_id}`, journalId: `JRN-REV-${state.removedPayments.length}` } }); }
+      if ((m = /^\/api\/v1\/transactions\/accounting\/businessId\/([^/]+)\/transactions$/.exec(p)) && req.method === 'POST') { const lines = JSON.parse(body || '[]'); if (!Array.isArray(lines)) return send(400, { message: 'body must be an array' }); const d = lines.reduce((s, l) => s + (l.glType === 'debit' ? l.amount : 0), 0); const c = lines.reduce((s, l) => s + (l.glType === 'credit' ? l.amount : 0), 0); if (url.searchParams.get('glJournal') === 'true' && Math.round(d * 100) !== Math.round(c * 100)) return send(400, { message: 'Journal does not balance' }); const j = { _id: `j${state.journals.length + 1}`, lines }; state.journals.push(j); return send(201, { success: true, data: j }); }
+      if ((m = /^\/api\/v1\/transactions\/accounting\/businessId\/([^/]+)\/transactionId\/([^/]+)$/.exec(p)) && req.method === 'PUT') { const b = JSON.parse(body || '{}'); state.categorized.push({ id: m[2], ...b }); return send(200, { success: true, data: { _id: m[2], ...b } }); }
       return send(404, { message: 'no route' });
     });
   });
@@ -49,7 +55,14 @@ function writeTestMap() {
     mk('POST', '/api/v1/accountant/vendor'),
     mk('PATCH', '/api/v1/transactions/accounting/bookkeeping/V2/businessId/:businessId', { read: true }),
     mk('DELETE', '/api/v1/accountant/vendor/:id', { denied: 'method DELETE' }),
+    // RD-2 reversal routes, with the purposes the map search finds them by
+    mk('PUT', '/api/v1/accountant/vendor/:id', { purpose: 'update a vendor (status active|inactive)' }),
+    mk('PUT', '/api/v1/transactions/accounting/bookkeeping/businessId/:businessId/bill/:billId/apply-payment', { purpose: 'apply a ledger payment to a bill' }),
+    mk('PUT', '/api/v1/transactions/accounting/bookkeeping/businessId/:businessId/bill/:billId/remove-payment', { purpose: 'take a ledger payment back off a bill, posting a reversing journal; body payment_id' }),
+    mk('POST', '/api/v1/transactions/accounting/businessId/:businessId/transactions', { purpose: 'Bulk create; the journal-entry create surface. Body = bare array of transaction lines; query glJournal=true' }),
+    mk('PUT', '/api/v1/transactions/accounting/businessId/:businessId/transactionId/:transactionId', { purpose: 'Update/categorize one transaction' }),
   ] };
+  map.count = map.endpoints.length;
   fs.mkdirSync(path.dirname(M.OUT), { recursive: true });
   const existed = fs.existsSync(M.OUT) ? fs.readFileSync(M.OUT) : null;
   fs.writeFileSync(M.OUT, JSON.stringify(map));

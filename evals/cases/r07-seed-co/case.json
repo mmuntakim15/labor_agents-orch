@@ -1,0 +1,35 @@
+{
+  "agent": "intake",
+  "stage": "intake",
+  "request": {
+    "title": "AP balance by vendor at each month end with debit balances and duplicate vendor names",
+    "body": "Show the AP balance by vendor at each month end this year. Flag vendors with debit balances and vendor records that look like the same vendor under two names. Entity: RD-2 Seed Co.",
+    "backend": "local",
+    "recipeId": null
+  },
+  "artifacts": [],
+  "expect": {
+    "artifact": "triage.md",
+    "mustMention": [
+      "RD-2 Seed Co"
+    ],
+    "mustNotMention": [
+      "posted",
+      "applied"
+    ],
+    "json": {
+      "kind": "report",
+      "worker": "analyst",
+      "writes": false,
+      "recipeId": "R07"
+    },
+    "jsonKeys": [
+      "subject",
+      "done"
+    ],
+    "maxQuestions": 1,
+    "maxGuardDenials": 0,
+    "maxCostUsd": 1.5,
+    "comment": "Intake must adopt recipe R07 (match on the library prompt) and resolve the entity RD-2 Seed Co 6b04fbe033bad113b98931d4. Seed expectations: {\"title\":\"Vendors with debit AP balances\",\"exceptions\":[{\"vendor\":\"Northwind Software\",\"debitBalance\":\"1000.00\",\"bill\":\"B-1012\",\"billed\":\"1200.00\",\"paid\":\"2200.00\",\"paidOn\":\"2026-08-20\"}],\"apControl\":{\"openBills\":\"3697.50\",\"glAccountsPayable_2026_11_30\":\"2697.50\"}}"
+  }
+}

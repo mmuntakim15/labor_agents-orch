@@ -38,7 +38,7 @@ function decide(input, env) {
     // a Bash call must start with one of the desk's tools (the allow list says the same; this is the second lock)
     const first = cmd.trim().split(/\s+/);
     const ok = first[0] === 'node' && first[1] && path.resolve(first[1]).startsWith(TOOLS + path.sep);
-    if (!ok) return { allow: false, reason: `Only the desk's tools may be run: node ${TOOLS}/<map|dime|files|export|check>.js … (got "${cmd.slice(0, 80)}")` };
+    if (!ok) return { allow: false, reason: `Only the desk's tools may be run: node ${TOOLS}/<map|dime|files|export|check|compute|sandbox>.js … (got "${cmd.slice(0, 80)}")` };
     return { allow: true };
   }
 

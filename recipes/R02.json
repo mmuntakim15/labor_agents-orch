@@ -1,0 +1,106 @@
+{
+  "id": "R02",
+  "version": 1,
+  "group": 1,
+  "title": "Recurring vendors with no expense this month",
+  "prompt": "Which recurring vendors had expenses in each of the prior three months but no expense recorded this month?",
+  "keywords": [
+    "missing accrual",
+    "recurring expense",
+    "vendor gap",
+    "skipped bill",
+    "monthly vendors"
+  ],
+  "kind": "question",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "excludedVendors",
+      "q": "Which vendors bill quarterly or annually, or are known to be seasonal, and should be left out?",
+      "type": "list",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Vendor contracts or recurring invoices",
+      "periodRule": "last_closed_month",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull expense transactions by vendor for the last four months",
+    "run recurrence_detect with the excluded vendors removed",
+    "for each gap, show the three prior amounts and the last posting date",
+    "note prepayments and vendor name changes before suggesting an accrual"
+  ],
+  "compute": [
+    "recurrence_detect"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the vendor id and the last transaction id",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "recurring-vendor-gaps.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "recurring-vendor-gaps.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "recurring-vendor-gaps.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The vendor history was read from Dime, not inferred",
+      "evaluator": "receipts_min",
+      "expect": {
+        "min": 2
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Each gap shows the three prior months' amounts and the last posting date; seasonality or a prepayment is named when it explains the gap"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "recurring-vendor-gaps.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r02-seed-co"
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "id": "R23",
+  "version": 1,
+  "group": 3,
+  "title": "Invoices received after month-end for prior-period expenses not accrued",
+  "prompt": "Review invoices received after month-end and identify expenses relating to the prior period that have not been accrued.",
+  "keywords": [
+    "unrecorded liabilities",
+    "accrual",
+    "cutoff",
+    "subsequent invoices",
+    "bills after period end",
+    "accrued expenses",
+    "reversal",
+    "search for unrecorded liabilities"
+  ],
+  "kind": "report",
+  "worker": "bookkeeper",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "closeCutoffDay",
+      "q": "How many days after month-end are invoices still reviewed for the prior period (the close cutoff)?",
+      "type": "number",
+      "scope": "*"
+    },
+    {
+      "key": "accrualCeiling",
+      "q": "Up to what amount may an accrual with a stated service period be proposed for one-click approval (tier A)?",
+      "type": "number",
+      "scope": "*"
+    },
+    {
+      "key": "accrualAccount",
+      "q": "Which ledger account holds accrued expenses?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Bills received after the period end up to the close cutoff",
+      "periodRule": "last_closed_month",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "read the period-lock state for the month; a closed period is a question, not a proposal",
+    "run Dime's cutoff scan and pull bills dated or received after period end up to the close cutoff day",
+    "for each bill read the service period on the invoice; a bill whose service falls in the prior period and has no accrual in the ledger is an exception",
+    "exclude bills already accrued, already posted in the period, or for goods received after period end; say which rule excluded each",
+    "propose each accrual dated the period end with its reversal dated the first day of the next period; tier A at or below the ceiling with a stated service period, tier B otherwise",
+    "tie: proposed accruals plus existing accruals equal the accrued expenses the Tie-out states"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "No two proposals accrue the same vendor, amount and period, and no bill already accrued or posted is proposed again",
+      "evaluator": "no_double_count",
+      "args": {}
+    },
+    {
+      "id": "D-2",
+      "text": "Every accrual and reversal balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-3",
+      "text": "Every exception row cites the bill id and the ledger search that found no accrual",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "unrecorded-liabilities.xlsx"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "unrecorded-liabilities.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "unrecorded-liabilities.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "Every accrual is paired with its reversal; the service period comes from the invoice, and a bill with no stated service period is proposed at tier B with the assumption written down"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "accrual",
+      "route": "journal entry accrual and reversal",
+      "tierRules": [
+        {
+          "when": "amount at or below {{setup.accrualCeiling}} and the invoice states the service period",
+          "tier": "A"
+        },
+        {
+          "when": "amount above {{setup.accrualCeiling}} or the service period is not stated on the invoice",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "unrecorded-liabilities.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check"
+  ],
+  "evals": [
+    "evals/cases/r23-seed-co"
+  ]
+}

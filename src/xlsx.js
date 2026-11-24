@@ -8,10 +8,11 @@ const zlib = require('zlib');
 // ---------------------------------------------------------------- zip
 const CRC_TABLE = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
 function crc32(buf) { let c = -1; for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8); return (c ^ -1) >>> 0; }
-function dosTime(d = new Date()) { return { time: ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xffff, date: (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xffff }; }
+function dosTime(d = new Date()) { return { time: ((d.getUTCHours() << 11) | (d.getUTCMinutes() << 5) | (d.getUTCSeconds() >> 1)) & 0xffff, date: ((Math.max(0, d.getUTCFullYear() - 1980) << 9) | ((d.getUTCMonth() + 1) << 5) | d.getUTCDate()) & 0xffff }; }
 
-function zip(files) {
-  const parts = []; const central = []; let offset = 0; const { time, date } = dosTime();
+/** files: [[name, Buffer|string], …]. opts.date fixes the zip entry timestamp so the same entries give byte-identical archives. */
+function zip(files, opts = {}) {
+  const parts = []; const central = []; let offset = 0; const { time, date } = dosTime(opts.date instanceof Date ? opts.date : new Date());
   for (const [name, content] of files) {
     const data = Buffer.isBuffer(content) ? content : Buffer.from(content, 'utf8');
     const deflated = zlib.deflateRawSync(data); const useDeflate = deflated.length < data.length;

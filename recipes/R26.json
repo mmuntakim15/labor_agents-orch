@@ -1,0 +1,176 @@
+{
+  "id": "R26",
+  "version": 1,
+  "group": 3,
+  "title": "Payroll journal entry from the gross-to-net report",
+  "prompt": "Prepare the monthly payroll journal entry from the gross-to-net payroll report using approved account and department mappings.",
+  "keywords": [
+    "payroll journal entry",
+    "gross-to-net",
+    "payroll register",
+    "account mapping",
+    "department",
+    "employer taxes",
+    "withholdings",
+    "payroll clearing",
+    "pay run",
+    "last pay date (period rule stand-in: business_day)"
+  ],
+  "kind": "report",
+  "worker": "preparer",
+  "trigger": {
+    "default": null,
+    "periodRule": "business_day",
+    "event": "payroll.pay_run",
+    "cadence": "each pay run"
+  },
+  "comment": "Trigger period rule: the library has no last_pay_date rule yet, so business_day stands in; the pay period itself comes from the payCalendar setup answer and the register dates. Runs on the payroll.pay_run event or on request.",
+  "setup": [
+    {
+      "key": "payrollMapping",
+      "q": "Which ledger account and department does each payroll line (wages, employer taxes, benefits, withholdings, net pay) post to?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "payrollClearingAccount",
+      "q": "Which ledger account is the payroll clearing or payroll funding account?",
+      "type": "accounts",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Gross-to-net payroll export for the pay period",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "csv",
+        "xlsx",
+        "pdf"
+      ],
+      "optional": false
+    },
+    {
+      "name": "Payroll account and department mapping workbook",
+      "periodRule": "business_day",
+      "source": "standing",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "maxAgeDays": 400,
+      "optional": false
+    },
+    {
+      "name": "Payroll funding report for the pay period",
+      "periodRule": "business_day",
+      "source": "document",
+      "acceptedTypes": [
+        "pdf",
+        "xlsx",
+        "csv"
+      ],
+      "optional": false
+    }
+  ],
+  "steps": [
+    "run column_map over the gross-to-net export (headers never positions) and save the mapping to data/gross-to-net-columns.json",
+    "apply the approved account and department mapping to each payroll line; a line with no mapping is an exception, never guessed",
+    "build the entry: debits for wages, employer taxes and benefits by department; credits for withholdings payable, benefits payable and the cash or clearing credit",
+    "read the funding report total; write data/payroll-entry.json with cashCredit, fundingTotal and cashCreditLessFunding",
+    "propose the journal entry (tier B from uploaded reports; tier A when the payroll provider is connected and the mapping is approved)",
+    "write the workbook with totals by account and department only; no employee-level figures"
+  ],
+  "compute": [
+    "column_map"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "The proposed payroll entry balances to the penny",
+      "evaluator": "proposals_balanced",
+      "args": {}
+    },
+    {
+      "id": "D-2",
+      "text": "The gross-to-net export columns were mapped by header with no ambiguous or missing required column",
+      "evaluator": "column_headers_mapped",
+      "args": {
+        "file": "gross-to-net-columns.json"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The cash or clearing credit in the entry equals the funding report total (the difference recorded in data/payroll-entry.json is 0.00)",
+      "evaluator": "figure_in_range",
+      "args": {
+        "file": "payroll-entry.json",
+        "figure": "cashCreditLessFunding"
+      },
+      "expect": {
+        "equals": 0
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every exception row cites the report line and the mapping row",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "payroll-journal-entry.xlsx"
+      }
+    },
+    {
+      "id": "D-5",
+      "text": "payroll-journal-entry.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "payroll-journal-entry.xlsx"
+      }
+    },
+    {
+      "id": "D-6",
+      "text": "Every entry line traces to a report column and a mapping row; the deliverable carries totals by account and department only, with no employee name or pay"
+    }
+  ],
+  "writes": [
+    {
+      "kind": "journal_entry",
+      "route": "journal entry payroll",
+      "tierRules": [
+        {
+          "when": "the payroll provider is connected and the figures and mapping come from the connection and the approved workbook",
+          "tier": "A"
+        },
+        {
+          "when": "the figures come from an uploaded gross-to-net report",
+          "tier": "B"
+        }
+      ]
+    }
+  ],
+  "deliverables": [
+    {
+      "name": "payroll-journal-entry.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L3-pending",
+  "restrictedData": true,
+  "budgetUsd": 10,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r26-seed-co"
+  ]
+}

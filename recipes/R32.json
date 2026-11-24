@@ -1,0 +1,141 @@
+{
+  "id": "R32",
+  "version": 1,
+  "group": 3,
+  "title": "Fixed asset additions against the capitalization threshold and a depreciation recalculation",
+  "prompt": "Review fixed asset additions this year against the capitalization threshold in policy: list capitalized items below it and expensed items above it, and recalculate the last closed month's depreciation by asset from in service date and useful life compared with what was booked.",
+  "keywords": [
+    "fixed assets",
+    "capitalization",
+    "threshold",
+    "additions",
+    "depreciation",
+    "recalculation",
+    "useful life",
+    "in service date",
+    "expensed"
+  ],
+  "kind": "report",
+  "worker": "analyst",
+  "trigger": {
+    "default": "0 6 3 * *",
+    "periodRule": "last_closed_month",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "capitalizationThreshold",
+      "q": "Below what amount is an invoice expensed when paid rather than set up as a prepaid or an asset?",
+      "type": "number",
+      "scope": "*"
+    },
+    {
+      "key": "usefulLives",
+      "q": "What useful life applies to each asset class?",
+      "type": "text",
+      "scope": "*"
+    },
+    {
+      "key": "depreciationConvention",
+      "q": "Which depreciation method and convention apply (straight-line, mid-month, half-year)?",
+      "type": "text",
+      "scope": "*"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Fixed asset register and depreciation schedule",
+      "periodRule": "year_to_date",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "General ledger for fixed asset and expense accounts",
+      "periodRule": "year_to_date",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Fixed asset register kept outside Dime",
+      "periodRule": "year_to_date",
+      "source": "document",
+      "acceptedTypes": [
+        "xlsx"
+      ],
+      "optional": true
+    }
+  ],
+  "steps": [
+    "pull the fixed asset register and this year's additions, and the general ledger for the fixed asset and the repairs, supplies and small equipment expense accounts",
+    "run threshold_test with capitalizationThreshold: capitalized items below it and expensed purchases above it",
+    "run depreciation_recalc for the last closed month by asset from cost, in service date, useful life and convention; compare with the booked monthly depreciation",
+    "list every threshold exception and every asset whose recalculated depreciation differs from what was booked",
+    "write the workbook with the recalculation by asset on the Detail sheet"
+  ],
+  "compute": [
+    "depreciation_recalc",
+    "threshold_test"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the asset id or the transaction id and the policy rule it fails",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "fixed-asset-review.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "fixed-asset-review.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "fixed-asset-review.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The Detail sheet shows, per asset, recalculated depreciation for the month, booked depreciation and the difference, and its booked total ties to the month's depreciation expense in the general ledger",
+      "evaluator": "ties_to_gl_account",
+      "args": {
+        "account": "Depreciation Expense",
+        "startDate": "{{period.start}}",
+        "endDate": "{{period.end}}",
+        "name": "fixed-asset-review.xlsx"
+      },
+      "expect": {
+        "figure": "totalDebits"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "The threshold, useful lives and convention used are stated; no asset record is changed and no entry is proposed"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "fixed-asset-review.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 8,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r32-seed-co"
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "id": "R34",
+  "version": 1,
+  "group": 3,
+  "title": "Onboarding assessment of the books with a draft client request list",
+  "prompt": "Assess these books as if onboarding a new client: which accounts are unreconciled, which months are missing statements, what looks miscoded, and draft the document request list to send the client.",
+  "keywords": [
+    "onboarding",
+    "new client",
+    "books assessment",
+    "cleanup",
+    "missing statements",
+    "unreconciled",
+    "miscoded",
+    "document request",
+    "request list",
+    "takeover"
+  ],
+  "kind": "report",
+  "worker": "investigator",
+  "trigger": {
+    "default": null,
+    "periodRule": "year_to_date",
+    "event": null
+  },
+  "setup": [
+    {
+      "key": "clientBackground",
+      "q": "What does the client do, who kept the books before, and what is known about their condition?",
+      "type": "text",
+      "scope": "recipe"
+    },
+    {
+      "key": "periodsInScope",
+      "q": "Which months should the assessment cover (default: January 1 of the current year to the last closed month)?",
+      "type": "text",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "Bank accounts, statements and reconciliations",
+      "periodRule": "year_to_date",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "General ledger and chart of accounts",
+      "periodRule": "year_to_date",
+      "source": "dime",
+      "optional": false
+    },
+    {
+      "name": "Document vault files and open document requests",
+      "periodRule": "year_to_date",
+      "source": "dime",
+      "optional": false
+    }
+  ],
+  "steps": [
+    "pull the bank accounts, the statements and reconciliations held for each month in scope, the trial balance and the general ledger",
+    "run coverage_crosswalk: each bank and balance sheet account by month against the statement and reconciliation found",
+    "run gl_hygiene over the general ledger: miscoding, wrong sign, missing descriptions, duplicates",
+    "build the document request list from the gaps (statements, loan agreements, payroll reports, contracts), one line per item with the month it covers",
+    "write the workbook and the request email draft; the draft is never sent"
+  ],
+  "compute": [
+    "coverage_crosswalk",
+    "gl_hygiene"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites the account id, the month and the transaction id where one applies",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "onboarding-assessment.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "onboarding-assessment.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "onboarding-assessment.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "The request email draft exists as a file for the accountant to review; it is never sent by the desk",
+      "evaluator": "deliverable_exists",
+      "args": {
+        "name": "client-request-email.md"
+      }
+    },
+    {
+      "id": "D-4",
+      "text": "Every request list item names the document, the month and why it is needed; unreconciled, missing statement and miscoded items are three lists, not one"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "onboarding-assessment.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    },
+    {
+      "name": "client-request-email.md",
+      "sheets": [
+        "Draft"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 12,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r34-seed-co"
+  ]
+}

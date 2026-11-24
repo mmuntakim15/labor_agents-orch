@@ -1,0 +1,88 @@
+{
+  "id": "R08",
+  "version": 1,
+  "group": 1,
+  "title": "Possible duplicate bills or payments",
+  "prompt": "Find possible duplicate bills or payments this year: same vendor and the same or nearly the same amount within 30 days.",
+  "keywords": [
+    "duplicate",
+    "double payment",
+    "double entry",
+    "same amount",
+    "bank feed and upload",
+    "candidate pairs"
+  ],
+  "kind": "question",
+  "worker": "investigator",
+  "trigger": {
+    "default": "0 6 * * 1",
+    "periodRule": "year_to_date",
+    "event": null,
+    "cadence": "weekly"
+  },
+  "setup": [
+    {
+      "key": "sameAmountVendors",
+      "q": "Which vendors legitimately bill the same amount repeatedly (rent, subscriptions) and should be excluded?",
+      "type": "list",
+      "scope": "recipe"
+    }
+  ],
+  "inputs": [],
+  "steps": [
+    "pull this year's bills and bill payments with vendor, date and amount",
+    "run duplicate_pairs (same vendor, same or near amount, within 30 days) with the excluded vendors removed",
+    "for each pair, say why it is a candidate and which source each entry came from"
+  ],
+  "compute": [
+    "duplicate_pairs"
+  ],
+  "done": [
+    {
+      "id": "D-1",
+      "text": "Every exception row cites both entry ids and their sources",
+      "evaluator": "exceptions_have_source",
+      "args": {
+        "name": "duplicate-candidates.xlsx"
+      }
+    },
+    {
+      "id": "D-2",
+      "text": "duplicate-candidates.xlsx opens with Exceptions first (count and total on the first rows), a Tie-out block whose Difference is 0.00, and no internal plumbing words",
+      "evaluator": "deliverable_standard",
+      "args": {
+        "name": "duplicate-candidates.xlsx"
+      }
+    },
+    {
+      "id": "D-3",
+      "text": "Each candidate pair gives a reason; recurring same-amount vendors from setup are not listed"
+    }
+  ],
+  "writes": [],
+  "deliverables": [
+    {
+      "name": "duplicate-candidates.xlsx",
+      "sheets": [
+        "Exceptions",
+        "Tie-out",
+        "Detail",
+        "Sources"
+      ]
+    }
+  ],
+  "autonomyCeiling": "L4",
+  "restrictedData": false,
+  "budgetUsd": 3,
+  "tools": [
+    "map",
+    "dime",
+    "files",
+    "export",
+    "check",
+    "compute"
+  ],
+  "evals": [
+    "evals/cases/r08-seed-co"
+  ]
+}
